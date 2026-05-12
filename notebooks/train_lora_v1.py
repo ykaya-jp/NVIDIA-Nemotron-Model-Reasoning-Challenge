@@ -181,35 +181,42 @@ if TRAIN_ON_KAGGLE:
     for k, v in sorted(src_dist.items()):
         print(f"  {k}: {v}")
 
-    def format_chat(rec):
-        # Match the chat template the official metric notebook uses for
-        # inference (user role only; assistant fills in the answer).
-        return {
-            "messages": [
-                {"role": "system", "content": rec["system"]},
-                {
-                    "role": "user",
-                    "content": rec["user"]
-                    + "\nPlease put your final answer inside `\\boxed{}`. "
-                    + "For example: `\\boxed{your answer}`",
-                },
-                {"role": "assistant", "content": rec["assistant"]},
-            ]
-        }
+    # ALIGN WITH OFFICIAL INFERENCE (Codex review 2 §1, CRITICAL):
+    # The competition's metric notebook formats the prompt as a single
+    # user turn + apply_chat_template(add_generation_prompt=True,
+    # enable_thinking=True) and the model writes the assistant turn.
+    # Our SFT must use the exact same template so the model sees the
+    # same boundary tokens at train time and at inference time.
+    INFERENCE_USER_SUFFIX = (
+        "\nPlease put your final answer inside `\\boxed{}`. "
+        "For example: `\\boxed{your answer}`"
+    )
 
-    ds = Dataset.from_list([format_chat(r) for r in rows])
-    print(f"dataset size: {len(ds)}")
-
-    # Apply chat template to produce a single 'text' column
-    def render(example):
-        text = tokenizer.apply_chat_template(
-            example["messages"],
+    def render(rec):
+        # Build the user-only prompt portion in the exact form the
+        # scorer will use.
+        user_content = rec["user"] + INFERENCE_USER_SUFFIX
+        prompt_text = tokenizer.apply_chat_template(
+            [{"role": "user", "content": user_content}],
             tokenize=False,
-            add_generation_prompt=False,
+            add_generation_prompt=True,
+            enable_thinking=True,
         )
-        return {"text": text}
+        # Append the assistant text we want the model to learn. SFTTrainer
+        # will tokenise the whole thing; loss is computed on every token
+        # by default. To avoid teaching the model to regenerate the
+        # prompt, the trainer config below sets `dataset_text_field='text'`
+        # and we keep `packing=False` so prompt+response stays as a
+        # single sequence.
+        return {"text": prompt_text + rec["assistant"]}
 
-    ds = ds.map(render, remove_columns=["messages"])
+    ds = Dataset.from_list([render(r) for r in rows])
+    # Drop rows that fall back to gold-only (no rationale) — Codex
+    # review 2 §3 flagged the "abstention phrase + boxed gold" pairing
+    # as a contamination risk. Keep only verifier-backed rows for SFT.
+    keep = [i for i, r in enumerate(rows) if r["source"].startswith("solver")]
+    ds = ds.select(keep)
+    print(f"after filtering to verifier-backed only: {len(ds)} records")
     print("sample text length:", len(ds[0]["text"]))
 
 # ====================================================================

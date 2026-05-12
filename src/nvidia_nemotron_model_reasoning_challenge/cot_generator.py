@@ -166,17 +166,60 @@ def _cot_cipher(prompt: str) -> tuple[str, str] | None:
 
 
 def _cot_bit(prompt: str) -> tuple[str, str] | None:
+    """Detailed per-output-bit rationale.
+
+    Codex review 2 §4 flagged the previous one-line summary as
+    template-memorisation bait. We now spell out, per output bit,
+    which single-input boolean function fits every example and the
+    bit value it predicts for the query.
+    """
+    parsed = solver_bit._parse(prompt)
+    if parsed is None:
+        return None
+    examples, query = parsed
     answer = solver_bit.solve(prompt)
     if answer is None:
         return None
+    # Re-derive the chosen (subset, truth_table) per output bit so we
+    # can print it. We mirror solver_bit.solve()'s commit rule.
+    fn_per_bit: list[tuple[tuple[int, ...], int]] = []
+    for ob in range(8):
+        cands = solver_bit._candidate_functions(examples, ob, 1)
+        # we know solver_bit committed, so cands is non-empty and unique
+        if cands:
+            fn_per_bit.append(cands[0])
+        else:
+            fn_per_bit.append(((), 0))  # placeholder, shouldn't trigger
+
+    detail_lines: list[str] = []
+    for ob, (subset, tt) in enumerate(fn_per_bit):
+        if not subset:
+            detail_lines.append(f"  out_bit[{ob}]: (constant / abstain)")
+            continue
+        # Render the truth table as a tiny readable form.
+        # For k=1: tt ∈ {0,1,2,3} mapping {0→tt&1, 1→(tt>>1)&1}
+        bit_pos = subset[0]
+        f0 = tt & 1
+        f1 = (tt >> 1) & 1
+        labels = {
+            (0, 0): "always 0",
+            (1, 1): "always 1",
+            (0, 1): f"identity of in_bit[{bit_pos}]",
+            (1, 0): f"NOT of in_bit[{bit_pos}]",
+        }
+        kind = labels[(f0, f1)]
+        q_in = (query >> (7 - bit_pos)) & 1
+        q_out = (tt >> q_in) & 1
+        detail_lines.append(
+            f"  out_bit[{ob}]: depends on in_bit[{bit_pos}] only -> "
+            f"{kind}; query has in_bit[{bit_pos}] = {q_in}, "
+            f"so out_bit[{ob}] = {q_out}"
+        )
     rationale = (
-        "Each output bit can be expressed as a boolean function of a "
-        "small subset (1-3) of the input bits. I brute-force enumerate "
-        "boolean functions of growing arity (k = 1, 2, 3) and pick the "
-        "unique function per output bit that agrees with every "
-        "demonstration example. Then I apply the recovered functions "
-        "to the query input bit-by-bit.\n\n"
-        f"Resulting 8-bit output: {answer}."
+        "I treat each output bit independently and search for a single-"
+        "input boolean function that fits every (input, output) pair "
+        "(I verified there is no conflict with a two-input extension). "
+        "Per output bit:\n\n" + "\n".join(detail_lines) + f"\n\nConcatenating gives {answer}."
     )
     return rationale, answer
 

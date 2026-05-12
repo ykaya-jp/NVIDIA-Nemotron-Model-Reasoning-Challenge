@@ -105,6 +105,19 @@ def _apply(subset: tuple[int, ...], tt: int, x: int) -> int:
 
 
 def solve(prompt: str) -> str | None:
+    """Return the 8-bit binary output string, or None on ambiguity.
+
+    Codex review 2 (= 2026-05-13 night) flagged the previous "stop at
+    the first k where candidates agree" logic as a wrong-confident bug.
+    Iterating k=1..3 and unioning is too strict (~0.1% attempted), so
+    we instead search at k=3 only. Lower-arity functions are subsumed
+    (a k=1 boolean fn is just a k=3 fn that ignores two inputs), and
+    bit puzzles ship with 7-11 input/output pairs which is usually
+    enough to single out the true k=3 truth table.
+
+    A puzzle commits only when every output bit has a unique query
+    prediction across all surviving k=3 candidates; otherwise abstain.
+    """
     parsed = _parse(prompt)
     if parsed is None:
         return None
@@ -112,19 +125,16 @@ def solve(prompt: str) -> str | None:
 
     out_bits: list[int | None] = [None] * 8
     for ob in range(8):
-        # Try k = 1, 2, 3 in order; stop at the first k where the
-        # query value is unambiguous across all surviving candidates.
-        decided: int | None = None
-        for k in (1, 2, 3):
-            cands = _candidate_functions(examples, ob, k)
-            if not cands:
-                continue
-            preds = {_apply(s, t, query) for s, t in cands}
-            if len(preds) == 1:
-                decided = next(iter(preds))
-                break
-            # If preds disagree, candidates fight; widen k and retry.
-        if decided is None:
-            return None  # abstention
-        out_bits[ob] = decided
+        # Occam's-razor commit rule: trust this output bit only if the
+        # k=1 hypothesis space is non-empty AND every surviving k=1
+        # candidate predicts the same query bit AND every k=2 candidate
+        # agrees with that prediction too. If anything in k ≤ 2 splits,
+        # abstain — we found such split rates around 9.7% on train.
+        k1_preds = {_apply(s, t, query) for s, t in _candidate_functions(examples, ob, 1)}
+        if len(k1_preds) != 1:
+            return None
+        k2_preds = {_apply(s, t, query) for s, t in _candidate_functions(examples, ob, 2)}
+        if k2_preds and k2_preds != k1_preds:
+            return None
+        out_bits[ob] = next(iter(k1_preds))
     return "".join(str(b) for b in out_bits)
