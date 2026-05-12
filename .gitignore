@@ -1,0 +1,79 @@
+# Data — never commit (use kaggle CLI to re-download)
+data/raw/*
+data/interim/*
+data/processed/*
+data/external/*
+!data/*/.gitkeep
+
+# Outputs — large, regenerable
+outputs/oof/*
+outputs/preds/*
+outputs/models/*
+outputs/logs/*
+!outputs/*/.gitkeep
+
+# MLflow local store
+mlruns/
+mlartifacts/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+*.egg-info/
+dist/
+build/
+.venv/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local env
+.env
+.env.local
+
+# Kaggle download artifacts
+*.zip
+
+# Submission archive: keep CSV, ignore raw kaggle stdout
+submissions/*.txt
+
+# Notebook output (nbstripout handles this on commit, but keep gitignore as belt+suspenders)
+*-checkpoint.ipynb
+
+# Appended by new-competition.sh from _template/docs/.gitignore.append
+# --- kaggle-onboard skill 由来 ---
+# 大容量・再生成可能なファイルは commit しない (orbit-wars 由来の慣習)
+
+# external host data (kaggle datasets list 経由で DL したもの)
+data/external/*
+!data/external/.gitkeep
+
+# replay JSONs (rl agent comp の場合) — large, regenerable
+data/replays/*
+!data/replays/.gitkeep
+
+# extracted feature parquet — regenerable
+data/processed/*
+!data/processed/.gitkeep
+
+# kaggle CLI artifacts
+.kaggle/
+*.zip
+
+# tournament logs (rl) — regenerable
+/tournament_*.csv
+
+# NN model checkpoints
+*.pt
+*.onnx
+agents/proxy/*.zip
+
+# LB snapshots (CSV) は docs/research/ 配下にあるので個別に追加可
+# `docs/research/lb_snapshot_*.csv` は commit する (= 履歴として残す)

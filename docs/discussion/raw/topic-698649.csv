@@ -1,0 +1,20 @@
+id,authorName,postDate,votes,content
+3456027,,2026-05-11 03:30:20.827000,-2,"<p>Hi everyone! 👋
+I’ve been working on this competition and hitting a wall at 0.56. Would love advice from those scoring higher.
+My current approach:
+    •   Training on 4 deterministic puzzle types: gravity, numeral, unit_conversion, cipher + bit_manipulation
+    •   Programmatic CoT traces with  tags
+    •   7,219 correctly solved training examples from train.csv
+    •   LoRA rank 16, lr=2e-4, 3 epochs, bf16
+What I’ve tried:
+    •   Short CoT (~234 tokens) → 0.56 ✅ best
+    •   Longer CoT (~340 tokens) → 0.50 ❌
+    •   Rank 32, lr=5e-5 → 0.50 ❌
+    •   No system prompt, correct prompt suffix → 0.56
+My questions:
+    1.  What CoT length works best for you?
+    2.  Should I mask the prompt tokens during training (only train on completion)?
+    3.  Is there something specific about how  tags should be formatted?
+    4.  Any advice on improving bit manipulation accuracy beyond 54%?
+<a href=""https://www.kaggle.com/huikang"" target=""_blank"">@huikang</a> <a href=""https://www.kaggle.com/donaldgalliano"" target=""_blank"">@donaldgalliano</a> — would really appreciate your insights! 🙏
+Thank you! 🙏</p>"

@@ -1,0 +1,39 @@
+id,authorName,postDate,votes,content
+3455975,,2026-05-10 21:01:35.313000,5,"<p>I am also seeing some kind of 1% drop in scores.</p>
+<p>If my understanding is correct, the update is to fix such cases, right? </p>
+<pre><code>True answer: +}
+Model output: \boxed{+}}
+Old metric extracted: +
+New metric extracts: +}
+Result: now correct
+</code></pre>
+<p>But if for some reason the model added } at the end of boxed, like this : </p>
+<pre><code>True answer: 42
+Model output: \boxed{42}}
+Old metric extracted: 42
+New metric extracts: 42}
+Result: wrong
+</code></pre>
+<p>Then our score will go down with the new update. </p>
+<p>So maybe this is the case? The public LB does not have problems with ""}"" in the answer (or our models can't handle it correctly in the first place), but might have some outputs with multiple }} in the boxed output, which causes the wrong answer to other problems.</p>
+<p>PS: In my local tests, I see an increase of 2%, but my local validation set outputs do not include a case with }} beside the ones needed fix. </p>"
+3456263,,2026-05-11 15:28:54.617000,3,"<p>This seems like an ambiguity that doesn't have a clear resolution. I'm still in favor of keeping the fix, though, since it allows a larger subset of problems to be correctly answered which were simply impossible before.</p>"
+3455054,,2026-05-08 14:02:56.743000,20,"<p>Hi everyone,</p>
+<p>I just deployed a fix to the metric that should address the issue of answers with the <code>'}'</code> character not being correctly extracted. I've tested it against a variety of inputs, and I believe it should be robust. If it seems like it's not working though, please let me know.</p>
+<p>Also, since this fix should only improve scores, I won't be doing a rescore. Instead, just resubmit anything you want scored again.</p>
+<p>Please let me know if you have any questions or concerns.</p>"
+3455463,,2026-05-09 13:17:39.753000,3,<p>Thanks for the update. My first feedback is that it has dropped my score by 1%. So from 0.86 to 0.85. But you expected it to increase scores! There is something wrong probably. I will do some tests with the new metric and provide updates here.</p>
+3456264,,2026-05-11 15:29:24.570000,1,"<p>If you discover an error, please let me know!</p>"
+3456267,,2026-05-11 15:40:35.153000,0,<p>My tests did not reveal any issue yet. So I guess the answer extraction script works well.</p>
+3455257,,2026-05-08 23:09:55.087000,2,"<p>PSA that the metric notebook is at <a href=""https://www.kaggle.com/code/metric/nvidia-nemotron-metric/notebook"" target=""_blank"">https://www.kaggle.com/code/metric/nvidia-nemotron-metric/notebook</a></p>"
+3455146,,2026-05-08 18:11:08.793000,1,<p>I'm not sure what went wrong; the same file submission is now getting a score 0.02 lower than before.</p>
+3455208,,2026-05-08 20:26:46.460000,1,"<p>Maybe try submitting it again? There is some non-determinism inherent in the evaluation. It's possible the metric change didn't affect you much, but you're just seeing variation in vLLM.</p>"
+3455287,,2026-05-09 02:44:06.970000,-1,"<p>Sure I am give a solution in this the problems:</p>
+<p>Can have make code into character answer correctly this the import Library this import re to handle the patterns, but I'll make sure my regex is now robust enough to match your fix. </p>
+<p>This is mine solutions </p>"
+3455194,,2026-05-08 20:05:41.337000,0,<p>Any chance you can allocate more compute for the  metric calculation takes 2 hrs  to test one adapter ;)</p>
+3455222,,2026-05-08 21:03:28.487000,4,"<p>You should rely on local CV to evaluate your adapter. Relying on public leaderboard is a recipe for overfitting.</p>
+<p>Remember that what matters is your score on the private test data, not the public test data.</p>
+<p>Back to why evaluation takes two hours is because we kept enough samples for the test data to avoid to much instability in scoring. There is still some instability. If we were to modify it then I'd advocate for using more samples in test data, which would mean longer scoring.</p>"
+3455623,,2026-05-09 21:31:51.180000,0,
+3455133,,2026-05-08 16:58:36.183000,1,<p>Thank you Ryan.</p>

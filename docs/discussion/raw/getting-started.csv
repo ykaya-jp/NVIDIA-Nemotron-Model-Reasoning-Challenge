@@ -1,0 +1,60 @@
+id,authorName,postDate,votes,content
+3422112,,2026-03-17 00:08:37.323000,56,"<h2>Information for First-Timers</h2>
+<p>New to NVIDIA Nemotron open model family and its NeMo open libraries? If you’re just starting to explore these models, tools, or docs, feel free to start a new thread in this channel, or drop any first-timer questions here and folks can help you get unblocked.
+If you’re new to Nemotron and NeMo, skim the official Nemotron model pages, NeMo docs, and the resources listed below, then come back with specific questions about setup, fine-tuning, RL, or evaluation.
+Happy reasoning with Nemotron, and good luck climbing the leaderboard!</p>
+<h3>1. Core Nemotron model family (models &amp; baselines)</h3>
+<ul>
+<li><a href=""https://developer.nvidia.com/nemotron"" target=""_blank"">Nemotron overview (model family, capabilities, benchmarks)</a></li>
+<li><a href=""https://github.com/NVIDIA-NeMo/Nemotron"" target=""_blank"">Nemotron GitHub</a>(main repo and examples)</li>
+<li>Nemotron 3 Nano<a href=""https://developer.nvidia.com/blog/inside-nvidia-nemotron-3-techniques-tools-and-data-that-make-it-efficient-and-accurate/"" target=""_blank""> technical blog</a> (architecture, efficiency, training details) </li>
+<li>Nemotron v3 collection on <a href=""https://huggingface.co/collections/nvidia/nvidia-nemotron-v3"" target=""_blank"">Hugging Face</a> (ready-to-use checkpoints)</li>
+</ul>
+<h3>2. Nemotron open libraries for data &amp; RL</h3>
+<p><strong>Synthetic data generation</strong>
+NeMo Data Designer (generate domain/task-specific synthetic data):</p>
+<ul>
+<li>GitHub: <a href=""https://github.com/NVIDIA-NeMo/DataDesigner"" target=""_blank"">https://github.com/NVIDIA-NeMo/DataDesigner</a></li>
+<li>Docs: <a href=""https://nvidia-nemo.github.io/DataDesigner/latest/"" target=""_blank"">https://nvidia-nemo.github.io/DataDesigner/latest/</a></li>
+<li>Recipes: <a href=""https://nvidia-nemo.github.io/DataDesigner/latest/recipes/cards/"" target=""_blank"">https://nvidia-nemo.github.io/DataDesigner/latest/recipes/cards/</a></li>
+</ul>
+<p><strong>Data filtering and curation</strong>
+NeMo Curator (multi‑modal data curation: text, images, video, audio):</p>
+<ul>
+<li>GitHub: <a href=""https://github.com/NVIDIA-NeMo/Curator"" target=""_blank"">https://github.com/NVIDIA-NeMo/Curator</a></li>
+<li>Docs: <a href=""https://docs.nvidia.com/nemo/curator/latest/"" target=""_blank"">https://docs.nvidia.com/nemo/curator/latest/</a></li>
+</ul>
+<p><strong>RL &amp; Gym (reasoning, behavior, agents)</strong>
+NeMo RL (RL training at scale with SOTA algorithms):</p>
+<ul>
+<li>GitHub: <a href=""https://github.com/NVIDIA-NeMo/RL"" target=""_blank"">https://github.com/NVIDIA-NeMo/RL</a></li>
+</ul>
+<p><strong>NeMo Gym (build/manage RL environments)</strong></p>
+<ul>
+<li>GitHub: <a href=""https://github.com/NVIDIA-NeMo/gym"" target=""_blank"">https://github.com/NVIDIA-NeMo/gym</a></li>
+<li>Available environments:
+<a href=""https://github.com/NVIDIA-NeMo/Gym?tab=readme-ov-file#-available-environments"" target=""_blank"">https://github.com/NVIDIA-NeMo/Gym?tab=readme-ov-file#-available-environments</a></li>
+</ul>
+<p><strong>Guides &amp; tutorials</strong>
+Nemotron 3 Super – multi‑stage RLVR &amp; RLHF recipe with NeMo RL:</p>
+<ul>
+<li>Guide: <a href=""https://github.com/NVIDIA-NeMo/RL/blob/super-v3/docs/guides/nemotron-3-super.md"" target=""_blank"">https://github.com/NVIDIA-NeMo/RL/blob/super-v3/docs/guides/nemotron-3-super.md</a></li>
+<li>GRPO RLVR Jupyter notebook:
+<a href=""https://github.com/NVIDIA-NeMo/Nemotron/tree/main/usage-cookbook/Nemotron-3-Super/grpo-dapo"" target=""_blank"">https://github.com/NVIDIA-NeMo/Nemotron/tree/main/usage-cookbook/Nemotron-3-Super/grpo-dapo</a></li>
+</ul>
+<p><strong>Nemotron 3 Nano RL guide</strong>
+ <a href=""https://docs.nvidia.com/nemo/rl/nightly/guides/nemotron-3-nano.html"" target=""_blank"">https://docs.nvidia.com/nemo/rl/nightly/guides/nemotron-3-nano.html</a></p>
+<h3>3. Nemotron open datasets (instruction-following &amp; reasoning)</h3>
+<ul>
+<li>Pre‑training datasets collection: <a href=""https://huggingface.co/collections/nvidia/nemotron-pre-training-datasets"" target=""_blank"">Link</a></li>
+<li>Post‑training datasets: <a href=""https://huggingface.co/collections/nvidia/nemotron-post-training-v3"" target=""_blank"">Link</a></li>
+<li>RL instruction‑following dataset: <a href=""https://huggingface.co/datasets/nvidia/Nemotron-RL-instruction_following"" target=""_blank"">Link</a></li>
+<li>Agentic dataset:<a href=""https://huggingface.co/datasets/nvidia/Nemotron-Agentic-v1"" target=""_blank"">Link</a></li>
+<li>RAG dataset: <a href=""https://huggingface.co/datasets/nvidia/embed-nemotron-dataset-v1"" target=""_blank"">Link</a></li>
+<li>Personas collection: <a href=""https://huggingface.co/collections/nvidia/nemotron-personas"" target=""_blank"">Link</a></li>
+<li>More NVIDIA datasets: <a href=""https://huggingface.co/datasets?search=nvidia"" target=""_blank"">Link</a></li>
+</ul>
+<h3>4. Cookbooks, recipes, and evaluation</h3>
+<ul>
+<li>Nemotron main repo (cookbooks, training recipes, deployment examples): <a href=""https://github.com/NVIDIA-NeMo/Nemotron"" target=""_blank"">https://github.com/NVIDIA-NeMo/Nemotron</a></li>
+<li>Nemotron 3 Nano reproducibility / eval guide with NeMo Evaluator: <a href=""https://github.com/NVIDIA-NeMo/Evaluator/blob/main/packages/nemo-evaluator-launcher/examples/nemotron/nano-v3-reproducibility.md"" target=""_blank"">https://github.com/NVIDIA-NeMo/Evaluator/blob/main/packages/nemo-evaluator-launcher/examples/nemotron/nano-v3-reproducibility.md</a></li>

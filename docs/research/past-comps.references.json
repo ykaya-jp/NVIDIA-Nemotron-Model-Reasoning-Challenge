@@ -1,0 +1,55 @@
+{
+  "_meta": {
+    "track": "A — past similar Kaggle competitions",
+    "compiled_for": "nvidia-nemotron-model-reasoning-challenge ({{COMP_TAGLINE}})",
+    "compiled_on": "2026-05-12",
+    "ordering": "most-recent first; the structurally most-similar past comp flagged 'structural_relevance: maximum'",
+    "schema_note": "Each top-level key is a past_comp_id (snake_case). _meta and _cross_comp_synthesis are special keys. All claims must have a verifiable URL or repo path."
+  },
+
+  "_template_past_comp_record": {
+    "comp_url": "https://www.kaggle.com/competitions/<slug>",
+    "year": "<YYYY[-YYYY]>",
+    "venue": "<NeurIPS / ICML / standalone / community>",
+    "paper_url": "<optional URL or null>",
+    "structural_relevance": "low | medium | high | maximum",
+    "structural_relevance_reason": "<one-line: なぜこの relevance か>",
+    "n_teams": 0,
+    "top1_team": "<team name>",
+    "top1_writeup_url": "<URL>",
+    "top1_writeup_url_status": "<200 | 404 | 403 | mirror>",
+    "top1_repo_url": "<URL or null>",
+    "top1_archive_url": "<optional Wayback Machine URL>",
+    "top2_team": "<team name>",
+    "top2_writeup_url": "<URL>",
+    "top3_team": "<team name>",
+    "top3_writeup_url": "<URL>",
+    "technique": "<canonical: heuristic | imitation_learning | deep_rl_ppo | gbdt_stack | transformer_seq2seq | cnn_segmentation | tabnet | nlp_finetune | timeseries_lstm | ...>",
+    "architecture": "<one-line architecture summary>",
+    "compute": "<one-line compute footprint>",
+    "key_tricks": [
+      "<trick 1 with 1-line explanation>"
+    ],
+    "transfer_to_current_comp": "<150-word section: which tricks port directly, which don't>",
+    "analog_outside_kaggle": false
+  },
+
+  "_cross_comp_synthesis": {
+    "when_heuristic_won": [],
+    "when_imitation_learning_won": [],
+    "when_drl_won": [],
+    "when_gbdt_stack_won": [],
+    "when_transformer_finetune_won": [],
+    "trend": "<1-2 paragraph: 当該 domain の歴史的 winning paradigm 推移と、当該コンペでの推定 winning paradigm。断定せず選択肢提示>",
+    "transferable_recipe_for_current_comp": [
+      "Phase 1 (week 1-2): <baseline approach>. Cite: <past_comp_id>",
+      "Phase 2 (week 3-4): <enhancement>. Cite: <past_comp_id>",
+      "Phase 3 (week 5-6): <stacking/ensemble/pretrain>. Cite: <past_comp_id>",
+      "Phase 4 (week 7-8): <submission strategy / TTA / self-play>. Cite: <past_comp_id>"
+    ],
+    "mandatory_tricks": [
+      "<trick 1 — どの comp も上位がやっている>",
+      "<trick 2>"
+    ]
+  }
+}

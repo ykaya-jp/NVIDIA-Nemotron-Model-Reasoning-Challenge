@@ -1,0 +1,60 @@
+id,authorName,postDate,votes,content
+3453927,,2026-05-06 07:37:11.657000,1,"<p><a href=""https://www.kaggle.com/ryanholbrook"" target=""_blank"">@ryanholbrook</a>
+If we have any chance to get fixed train dataset, please also inspect such cases (task <strong>00d8b3db</strong>):</p>
+<pre><code>In Alice's Wonderland, a secret set of transformation rules is applied to equations. Below are a few examples:
+34/44 = 1
+41/32 = 9
+34|25 = 69
+87\64 = 8853
+Now, determine the result for: 69/52
+</code></pre>
+<p>It assumes answer <code>17/</code> but where does the symbol <code>/</code> come from?
+Another example (task <strong>0c8a8a16</strong>): answer <code>{17</code> contains redundant <code>{</code>.
+One more example is reported here <a href=""https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/discussion/697333"" target=""_blank"">https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/discussion/697333</a></p>"
+3454506,,2026-05-07 11:33:29.663000,0,"<p>I have explained it in this discussion:
+<a href=""https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/discussion/686185#3432076"" target=""_blank"">https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/discussion/686185#3432076</a></p>"
+3454544,,2026-05-07 12:43:49.427000,2,"<p>Assuming model encounters this sample in inference time, applying abs(rev(a) - rev(b)) = output:</p>
+<p>abs(rev(34) - rev(44)) = 1 correct 🟩
+abs(rev(41) - rev(32)) = 9 correct 🟩</p>
+<p>which leads to
+abs(rev(69) - rev(52)) = 71 incorrect 🟥 </p>
+<p>This indicates that the issue is not a case of multiple valid solution paths converging on the same final answer. Instead, different solution approaches can lead to different answers, which makes the problem insufficiently represented in the dataset. The only way to reliably obtain the specific ground-truth answer provided here would be to train directly on this formulation and effectively overfit to it.</p>"
+3454612,,2026-05-07 14:54:14.403000,0,<p>Different meanings of the same symbol in different parts of an equation is very counterintuitive. It even violates the entire definition of equation.</p>
+3452293,,2026-05-03 03:03:09.523000,5,"<p>I had posted about this a month ago as well:</p>
+<p><a href=""https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/discussion/689284"" target=""_blank"">https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/discussion/689284</a></p>
+<p>Still no response from the hosts.</p>"
+3452294,,2026-05-03 03:04:52.220000,4,"<p>We missed it obviously.</p>
+<p>We'll look into that.</p>"
+3452435,,2026-05-03 11:46:12.510000,0,"<p>Another quick question: Because our eval/submission path loads the adapter through vLLM LoRA, the final submitted adapter cannot rely on lm_head or embedding LoRA tensors --- was that intended?</p>"
+3452456,,2026-05-03 12:50:12.240000,0,"<p>Yes, we aimed for simplicity.</p>"
+3452791,,2026-05-04 10:34:40.897000,2,"<p>Thanks for flagging, and apologies for missing this the first time. I will look into it.</p>"
+3454221,,2026-05-06 18:34:38.343000,0,"<p><a href=""https://www.kaggle.com/cpmpml"" target=""_blank"">@cpmpml</a> <a href=""https://www.kaggle.com/ryanholbrook"" target=""_blank"">@ryanholbrook</a>
+I have a suggestion to fix this :<a href=""https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/discussion/689284#3454216"" target=""_blank"">https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/discussion/689284#3454216</a></p>"
+3451305,,2026-05-01 06:21:40.283000,11,"<p>fa5dfa46,""In Alice's Wonderland, a secret set of transformation rules is applied to equations. Below are a few examples:
+$&lt;<em>&amp;@ = &amp;$@\
+}-&gt;@ = -!$
+}&gt;+@&lt; = !}}
+\@</em>@@ = &amp;&lt;&gt;$
+Now, determine the result for: }^-`}"",-^}</p>
+<p>What if the answer contains square brackets?
+Can putting a box over a character correctly identify whether it's right or wrong?</p>"
+3452165,,2026-05-02 17:57:23.663000,4,"<pre><code> def _extract_last_boxed(text: str) -&gt; str | None:
+        if not starts:
+            return None
+        start = starts[-1]
+        depth = 1
+        i = start
+        while i &lt; len(text):
+            c = text[i]
+            if c == ""{"":
+                depth += 1
+            elif c == ""}"":
+                depth -= 1
+                if depth == 0:
+                    if text[i + 1 :].strip():
+                        return None
+                    return text[start:i]
+            i += 1
+        return None
+</code></pre>
+<p>Hi <a href=""https://www.kaggle.com/ryanholbrook"" target=""_blank"">@ryanholbrook</a>, the metric regex \boxed{([^}]*)(?:}|$) stops at the first }. In cryptarithm puzzles { and } can be valid answer characters — about 20% of cryptarithm puzzles in train.csv (169/823) have such answers and can never be marked correct.</p>"

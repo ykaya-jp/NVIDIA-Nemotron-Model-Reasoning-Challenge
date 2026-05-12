@@ -1,0 +1,100 @@
+id,authorName,postDate,votes,content
+3453842,,2026-05-06 03:18:59.317000,6,"<p>Many people spend time in kaggle for learning. Kaggle is meant to be a place for learning and I guess it actively encourages ""copy, edit and submit notebooks"" so that new-comers can learn easily without being intimidated by the technology advancements. I have participated in few competitions and rarely find these kagglers come anywhere near the top when the final leaderboard arrives - the medals are meant to encourage more people to participate and contribute. So, dont be too harsh on them - you are justified if some team like that wins prize without putting much effort or contributing much -  since kaggle is a place where grandmasters are fighting for a prize - that doesn't happen easily!</p>"
+3453951,,2026-05-06 08:52:01.230000,0,<p>Everything is under the Apache 2.0 license; at least just add attribution.</p>
+3453358,,2026-05-05 11:53:12.450000,5,"<h1>Kaggle Competition Integrity: The Nemotron ""Wall of Shame""</h1>
+<p>I’ve noticed a significant uptick in low-effort, plagiarized, or ""word-farmed"" notebooks being published in this competition. Specifically, users are:</p>
+<ul>
+<li><strong>Plagiarizing Baselines:</strong> Simply copying existing high-LB (Leaderboard) notebooks and changing the title or adding random comments.</li>
+<li><strong>Word Farming:</strong> Adding large blocks of AI-generated or irrelevant text to notebooks to bypass spam filters or game the ""hotness"" algorithm.</li>
+<li><strong>""Random"" Updates:</strong> Re-publishing the same notebook daily with minor, non-functional changes just to stay at the top of the ""Recently Updated"" list.</li>
+</ul>
+<hr>
+<h2>🚫 The Nemotron ""Wall of Shame""</h2>
+<p>CAUTION
+<strong>Plagiarism Alert</strong>
+These notebooks are identified as direct copies or ""fluff-filled"" variants of original community research.</p>
+<h3>1. <a href=""https://www.kaggle.com/code/krishraghuwanshi/i-have-something-in-mind-after-this"" target=""_blank"">I Have Something in mind after this</a></h3>
+<p><strong>Verdict:</strong> Plagiarized copy of the <a href=""https://www.kaggle.com/code/kienngx/nvidia-nemotron-trained-models-submission"" target=""_blank"">original</a>.</p>
+<h3>2. <a href=""https://www.kaggle.com/code/mirzayasirabdullah07/nvidia-nemotron-model-notebook"" target=""_blank"">NVIDIA Nemotron Model Notebook</a></h3>
+<p><strong>Verdict:</strong> Markdown-plagiarized fluff. A copy of the <a href=""https://www.kaggle.com/code/asalhi/tinker-adapter-to-ready-to-submit-adapter"" target=""_blank"">original</a>.</p>
+<h3>3. <a href=""https://www.kaggle.com/code/drchenb/nvidia-nemotron-trained-models-submission#VERSION-1"" target=""_blank"">Nvidia Nemotron Trained Models Submission</a></h3>
+<p><strong>Verdict:</strong> Non-functional changes for the sake of re-publishing. Based on the <a href=""https://www.kaggle.com/code/kienngx/nvidia-nemotron-trained-models-submission"" target=""_blank"">original</a>.</p>
+<hr>
+<h2>🧐 Masterclasses in ""Fake it Till You Make It""</h2>
+<h3>🛡️ <a href=""https://www.kaggle.com/code/wethepeople918/glyphmatics/notebook"" target=""_blank"">GlyphMatics💯🖖</a></h3>
+<p>The ""GlyphMatics"" notebook is the ultimate ""fake it till you make it"" artifact—a masterclass in dressing up a skeleton in a tuxedo and calling it a revolution. It’s essentially a high-schooler’s HTML project wrapped around a single line of standard linear algebra that’s been public knowledge since the 70s. </p>
+<p>By branding a basic SVD truncation as <strong>""Residual-Matched PairFold RowGuard Transport,""</strong> the author is doing more ""transport"" of hot air than actual weight matrices. It’s the coding equivalent of a car salesman putting a racing stripe on a lawnmower; you can add all the emojis and ""energy gain caps"" you want, but it's still just a plagiarized script suffocating under fifty layers of AI-generated Markdown fluff.</p>
+<h3>📐 <a href=""https://www.kaggle.com/code/mdmahfuzsumon/geometry-of-intelligence-svd-lora-art-compression"" target=""_blank"">Geometry of Intelligence: SVD, LoRA &amp; Art Compression</a></h3>
+<p>""Geometry of Intelligence"" is a title doing incredibly heavy lifting for a notebook that is essentially just a ""Find and Replace"" job on a basic SVD script. It tries to frame the mechanical act of trimming a matrix as high-concept ""Art Compression.""</p>
+<p>In reality, it’s just the digital equivalent of taking a high-res photo, saving it as a low-quality JPEG, and then writing a 10-page thesis on the ""Abstract Minimalism of Pixelation."" It’s 1% utility, 99% aesthetic, and 100% designed to trick people into clicking the upvote button.</p>
+<hr>
+<h2>🛠️ The ""I Can’t Actually Code"" Suite</h2>
+<h3>🧊 <a href=""https://www.kaggle.com/code/jiazhuang/nemotron-local-cv"" target=""_blank"">Nemotron Local CV</a></h3>
+<p>This notebook is a sprawling monument to over-engineering. It implements ""caching"" functions that essentially just read files into RAM—something the OS already does—and a regex-heavy extraction function that looks like it was written by someone trying to explain math to a toaster. It’s a ""utility script"" that provides zero utility; just a glorified wrapper for <code>vLLM</code>.</p>
+<h3>🎣 <a href=""https://www.kaggle.com/code/kaziaishikuzzaman/end-to-end-finetuning-for-nemotron"" target=""_blank"">End-to-End Finetuning: The ""False Advertising"" Special</a></h3>
+<p>The title claims ""End-to-End Finetuning,"" but contains <strong>zero training logic</strong>. It is a total bait-and-switch. Instead of finetuning, it’s just another copy-paste of the same SVD compression script, hidden under a ""monkey-patch"" nobody asked for.</p>
+<h3>📦 <a href=""https://www.kaggle.com/code/apachikoff/nvidia-constraint-ai-comp"" target=""_blank"">NVIDIA_CONSTRAINT_AI_COMP: The ""Digital Hoarder""</a></h3>
+<p>This notebook imports <strong>24 different data sources</strong>, model versions <code>v1</code> through <code>v14</code>, only to select one and zip it. The description uses buzzwords like ""heterogeneous model configurations"" to describe what is actually just a script that copies a folder into a <code>.zip</code> file. It’s pulling in AI Mathematical Olympiad (AIMO) utilities for no reason—it's not ""scalable design,"" it's just messy housekeeping.</p>
+<hr>
+<h2>🎭 The ""Copy of a Copy""</h2>
+<h3>🔢 <a href=""https://www.kaggle.com/code/ringustheimp/tinker-w-svd-rank-16"" target=""_blank"">Tinker w/ SVD &amp; Rank 16</a></h3>
+<p>The only ""innovation"" here is changing a single integer: <code>FORCED_FUSED_RANK = 16</code>. By dropping the rank to 16, the author is literally throwing away half the model's remaining intelligence just to satisfy a self-imposed constraint that doesn't actually help performance.</p>
+<h3>🕵️ Comparison: <code>rn8205</code> vs. <code>huikang</code></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Original (<code>huikang</code>)</th>
+<th>""New"" (<code>rn8205</code>)</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Model</strong></td>
+<td>Nemotron-3-Nano</td>
+<td>Nemotron-3-Nano</td>
+<td>Identical</td>
+</tr>
+<tr>
+<td><strong>Validation Size</strong></td>
+<td>950 samples</td>
+<td>950 samples</td>
+<td>Identical</td>
+</tr>
+<tr>
+<td><strong>Logic</strong></td>
+<td>vLLM + LoRA</td>
+<td>vLLM + LoRA</td>
+<td>Identical</td>
+</tr>
+<tr>
+<td><strong>Improvement</strong></td>
+<td>Baseline</td>
+<td>Dead String Variable</td>
+<td><strong>Fake</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+  <h3>TIP</h3>
+  <p><strong>Stick to the original <code>huikang</code> notebook.</strong> The fork (<code>rn8205</code>) adds a <code>CRYPTARITHM_SOLVER_PREFIX</code> variable but <strong>never uses it</strong> in the logic. It’s ""dead code"" designed to look like an improvement.</p>
+</blockquote>
+<h3><a href=""https://www.kaggle.com/code/ulyanovantonamaranta/nemotron-tinker-adapter-repro"" target=""_blank"">nemotron-tinker-adapter-repro</a></h3>
+<h2>-&gt; just copies <a href=""https://www.kaggle.com/models/kienngx/nemotron-nano-30b-trained/Triton/tinker-adapter/1"" target=""_blank"">This Model Adapter</a></h2>
+<h2>📉 Why This Hurts the Competition</h2>
+<ol>
+<li><strong>Clutter:</strong> It makes it impossible for serious participants to find genuine research on prompting, synthetic data, or fine-tuning.</li>
+<li><strong>Reputation:</strong> It devalues the ""Open Contribution Awards"" meant for meaningful advances in reasoning performance.</li>
+<li><strong>Resource Waste:</strong> These notebooks run unnecessary compute sessions just to produce a submission file that already exists.</li>
+</ol>
+<h2>📢 Call to Action</h2>
+<ul>
+<li><strong>Report:</strong> If a notebook is a direct copy without attribution, use the ""Report"" flag for plagiarism.</li>
+<li><strong>Filter Quality:</strong> Focus on notebooks that actually implement original research or functional improvements.</li>
+</ul>
+<blockquote>
+  <p>NOTE
+  Let's keep the Kaggle community focused on high-quality, original contributions.</p>
+</blockquote>"
+3454428,,2026-05-07 05:44:34.617000,0,<p>Yeah and Glyphmatics will win in that same tux.. </p>

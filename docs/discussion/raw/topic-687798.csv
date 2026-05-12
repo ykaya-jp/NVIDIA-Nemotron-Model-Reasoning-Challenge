@@ -1,0 +1,135 @@
+id,authorName,postDate,votes,content
+3435110,,2026-04-03 17:30:58.430000,16,"<p>Hi everyone,</p>
+<p>Recently, there was an update to the <a href=""https://www.kaggle.com/code/metric/nvidia-nemotron-metric"" target=""_blank"">evaluation metric</a> that fixed a bug that was causing binary answers to match as floats instead of exactly as strings. This update led to a drop of about 0.3-0.4 points on new submissions. (The update is in the <code>verify()</code> function of the linked notebook.)</p>
+<p>So that the leaderboard will only reflect submissions using the new metric, I will be initiating a rescore on Monday. This rescore will only evaluate those submissions that both are still present on the Public Leaderboard and that were made on or before March 28th, that is, prior to the metric update. This will affect a little less than 2/3 of the current LB. Other submissions made on or before March 28th, I will invalidate. Submissions made after that time will be preserved.</p>
+<p>Why are we not rescoring every submission? Unfortunately, this would amount to over 9000 rescores and would strain our available capacity of the special GPUs used in this competition. We believe the above approach is the best compromise, that both preserves the existing leaderboard and maintains GPU availability for the community going forward.</p>
+<p>Please let us know if you have any questions or concerns below.</p>"
+3438100,,2026-04-08 17:04:03.267000,3,<p>The rescore is complete!</p>
+3436872,,2026-04-06 19:52:06.950000,4,"<p>I am about to begin the rescore process. The leaderboard may be in a strange state for a bit until the rescore completes. Here is what will happen:</p>
+<ol>
+<li><strong>DONE</strong> I will invalidate submissions <em>not</em> still present on the leaderboard that were made on or before March 28th.</li>
+<li><strong>DONE</strong> I will initiate a rescore of those submissions still present on the leaderboard that were made on or before March 28th.</li>
+</ol>
+<p>The rescore may take awhile to complete. I will keep you updated here.</p>"
+3435391,,2026-04-04 05:04:09.803000,3,"<p>I want to confirm if the stored answer is <code>0234</code>, is <code>234</code> the considered correct?</p>
+<p>I remember someone wrote a comment asking this, but I think it has since been deleted.</p>
+<pre><code>import re
+import math
+
+def verify(stored_answer: str, predicted: str) -&gt; bool:
+    # Clean up strings
+    stored_answer = stored_answer.strip()
+    predicted = predicted.strip()
+
+    # If the answer is a binary string, compare strictly as strings
+    if re.fullmatch(r'[01]+', stored_answer):
+        return predicted.lower() == stored_answer.lower()
+
+    try:
+        # Try to convert the answers to floating point numbers
+        stored_num = float(stored_answer)
+        predicted_num = float(predicted)
+        # Use a small absolute tolerance for numbers near zero
+        return math.isclose(stored_num, predicted_num, rel_tol=1e-2, abs_tol=1e-5)
+    except Exception as e:
+        print(e)
+        # Fallback to case-insensitive string comparison
+        return predicted.lower() == stored_answer.lower()
+
+print(verify(""0234"", ""234""))
+</code></pre>
+<p>Currently this is True.</p>"
+3435528,,2026-04-04 11:05:38.983000,1,"<p>I will look into it. As this would require another update and rerun, perhaps it's better to accept the ambiguity if it doesn't meaningfully affect the scores. Will let you know.</p>"
+3437052,,2026-04-07 03:51:17.717000,1,"<p>One of the bit manipulation questions is:</p>
+<pre><code>In Alice's Wonderland, a secret bit manipulation rule transforms 8-bit binary numbers. The transformation involves operations like bit shifts, rotations, XOR, AND, OR, NOT, and possibly majority or choice functions.
+
+Here are some examples of input -&gt; output:
+01100110 -&gt; 00000001
+01111111 -&gt; 10000001
+11111111 -&gt; 10000011
+00011110 -&gt; 00000000
+11000011 -&gt; 10000011
+00100101 -&gt; 10000000
+11100101 -&gt; 10000011
+11100100 -&gt; 00000011
+01011110 -&gt; 00000001
+
+Now, determine the output for: 01011000
+</code></pre>
+<p>The given ground truth label is <strong>1 only</strong>, but the expected output is <code>00000001</code>. So I think the labels were created according to this format.</p>
+<p>Also, some of the ground truth labels in the bit manipulation tasks are not 8-bit (e.g., <code>1</code>, <code>111101</code>, <code>1000100</code>, <code>10111111</code>, etc.). Even if we train the model to predict 8-bit outputs, we need the ground truth labels to be in the same format if we want to compute accurate metrics.</p>"
+3440013,,2026-04-11 18:30:42.373000,-1,"<p>chatGPT, Gemini, Claude? Which one did you use?</p>"
+3443140,,2026-04-16 06:53:59.777000,-1,"<p><img src=""https://www.googleapis.com/download/storage/v1/b/kaggle-forum-message-attachments/o/inbox%2F32817761%2F80bd3e3539a0200f9da4658899dc3f1d%2FScreenshot%202026-04-16%20122210.png?generation=1776322383346556&amp;alt=media"" alt=""""></p>
+<p>has the submissions been rescored today too?
+i am sure i had 5x0.84s and 2x0.85 before</p>"
+3435384,,2026-04-04 04:45:08.540000,-3,"<p><a href=""https://www.kaggle.com/ryanholbrook"" target=""_blank"">@ryanholbrook</a> I wish to purport that a lot of the recently launched competitions are having such operational issues including-</p>
+<ol>
+<li>Post launch metric adjustments</li>
+<li>Post launch data adjustments </li>
+<li>Post launch data + metric adjustments </li>
+<li>Ethical issues resulting in pausing the competition after launch</li>
+</ol>
+<p>I think some additional operational enhancements with human-driven supervision could be improved to curb such post-launch sub-optimalities. </p>"
+3435533,,2026-04-04 11:13:22.647000,0,"<p>Which ethical issues?
+Which post launch data adjustment?</p>
+<p>There has been one metric change so far.</p>"
+3435584,,2026-04-04 12:39:59.217000,0,"<p><a href=""https://www.kaggle.com/ravi20076"" target=""_blank"">@ravi20076</a> is most likely talking about overall decline in quality of Kaggle competitions (those are issues other past and current competitions have)</p>"
+3435595,,2026-04-04 12:53:24.547000,-1,"<p><a href=""https://www.kaggle.com/defdet"" target=""_blank"">@defdet</a> yes, a lot of the recently launched competitions in the last 4-5 months have had these issues. I am unsure if this is due to AI usage / supervision / governance issues. </p>"
+3435621,,2026-04-04 13:34:19.710000,5,<p>Why use this competition forum for a cross competition discussion?</p>
+3435704,,2026-04-04 15:47:42.010000,4,"<p>Hi <a href=""https://www.kaggle.com/ravi20076"" target=""_blank"">@ravi20076</a>,</p>
+<p>I will bring your concerns up with the team. You might wish to raise them in the <a href=""https://www.kaggle.com/discussions/product-feedback"" target=""_blank"">Product Feedback</a> forum instead to keep this forum on topic.</p>"
+3436026,,2026-04-05 07:20:52.147000,4,"<p>Host willingness to adjust Metric and data when error is found is showing a behavior of high integrity. It is unfair and discouraging to them to negatively turn a highly ethical behavior into something negative.</p>
+<p>Beside that, there is no way to confirm if all the past Competitions before these 4, 5 months is better or worst in term of data or Metric incorrect issues. Most of them are private and never reveal to you.</p>"
+3454461,,2026-05-07 08:40:35.170000,0,"<p>Bug Report: extract_final_answer regex fails when the ground truth answer
+  contains a literal } character</p>
+<p>The extract_final_answer function in the metric uses the following regex to
+  extract answers from \boxed{}:</p>
+<p>matches = re.findall(r'\boxed{([^}]*)(?:}|$)', text)</p>
+<p>The pattern [^}]* stops at the first } character encountered. This works
+  correctly for most problem types, but fails systematically for
+  equation_symbolic problems where the answer itself can contain } as a literal
+  symbol character.</p>
+<p>Example: problem b50cf853</p>
+<ul>
+<li><p>Ground truth answer: |?""} (four symbols: |, ?, "", })</p></li>
+<li><p>The model is instructed to output \boxed{|?""}</p></li>
+<li><p>In the raw output this appears as: \boxed{|?""}}</p></li>
+<li><p>The regex [^}]* matches |?"" and stops at the first }, extracting |?"" instead
+of |?""}</p></li>
+<li><p>Result: |?"" ≠ |?""} → marked incorrect, even though the model produced the
+right answer</p>
+<p>Impact:</p>
+<p>94 out of 9500 problems in the training set (all equation_symbolic type) have
+answers containing }. These are impossible to answer correctly under the
+current extraction logic, regardless of model quality. This means the
+theoretical maximum accuracy is capped at approximately 99.0% instead of 100%.</p>
+<p>Suggested fix:</p>
+<p>Use a greedy/balanced-brace matching approach instead of [^}]*, for example:</p>
+<h1>Match the LAST \boxed{…}, allowing nested braces</h1>
+<p>matches = re.findall(r'\boxed{((?:[^{}]|{[^{}]<em>})</em>)}', text)</p>
+<p>Or alternatively, accept escaped braces like } inside boxed content.</p></li>
+</ul>"
+3439246,,2026-04-10 11:25:16.480000,0,"<p><a href=""https://www.kaggle.com/ryanholbrook"" target=""_blank"">@ryanholbrook</a> I just want to do inference on the model to check results but """"""PermissionError: [Errno 13] Permission denied: '/kaggle/usr/lib/notebooks/ryanholbrook/nvidia-utility-script/triton/backends/nvidia/bin/ptxas-blackwell'""""""</p>"
+3436215,,2026-04-05 14:19:43.110000,0,"<p><a href=""https://www.kaggle.com/ryanholbrook"" target=""_blank"">@ryanholbrook</a> </p>
+<p>In the overview tab we can find this.</p>
+<p><img src=""https://www.googleapis.com/download/storage/v1/b/kaggle-forum-message-attachments/o/inbox%2F13977249%2F2558cd409c1e98a690dfd190659dad08%2F1.jpg?generation=1775398654086016&amp;alt=media"" alt=""""></p>
+<p>but in the last version (14th) of the <a href=""https://www.kaggle.com/code/metric/nvidia-nemotron-metric"" target=""_blank"">NVIDIA Nemotron Metric notebook</a> I see this</p>
+<pre><code>def score(
+    solution: pd.DataFrame,
+    submission: pd.DataFrame,
+    row_id_column_name: str,
+    max_lora_rank: int = 32,
+    max_tokens: int = 3584,
+    top_p: float = 1.0,
+    temperature: float = 1.0,
+    max_num_seqs: int = 128,
+    gpu_memory_utilization: float = 0.85,
+    max_model_len: int = 4096,
+    debug: bool = False,
+)
+</code></pre>
+<p>Is it a placeholder and actual scoring parameters are correct in the overview tab. I'm specifically interested in <code>max_tokens</code> and <code>max_model_length</code></p>"
+3436298,,2026-04-05 17:01:47.900000,2,<p>The defaults are only defaults. The correct parameters are in the Overview tab.</p>
+3453667,,2026-05-05 19:18:19.060000,0,"<p><a href=""https://www.kaggle.com/ryanholbrook"" target=""_blank"">@ryanholbrook</a> I need to update the bitsandbytes package in the run (I am using the 2026-02-18 PIN to Environment)
+2/ Can I include any other POST training for LoRA.DoRA any specific training requirements.</p>
+<p>/edit <a href=""https://www.kaggle.com/ryanholbrook"" target=""_blank"">@ryanholbrook</a> <a href=""https://www.kaggle.com/cpmpml"" target=""_blank"">@cpmpml</a> What is the PYTHONPATH you used in the utility script. I can not edit the export in the utility script.</p>"

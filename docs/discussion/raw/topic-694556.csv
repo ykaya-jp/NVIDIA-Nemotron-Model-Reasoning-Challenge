@@ -1,0 +1,208 @@
+id,authorName,postDate,votes,content
+3454909,,2026-05-08 07:00:36.230000,3,"<p><a href=""https://www.kaggle.com/toolazyhhh123"" target=""_blank"">@toolazyhhh123</a></p>
+<p>Of the 1555 symbol_transformation puzzles in train.csv, the public DSL (pick / shift / xor) doesn't fit on 878 of them (~57%):</p>
+<ul>
+<li>661 the public reference solver (Huikang's notebook) skips entirely.</li>
+<li>217 more it traces but tags individual operators as unknown and emits a fallback guess.</li>
+</ul>
+<p>I ran two independent solvers over a subset of 561 puzzles for training, and kept 53 puzzles for validation:</p>
+<ol>
+<li><p>z3-bounded search restricted to the public DSL - pick a character from a fixed input position, Caesar-shift, xor-with-constant, xor across two positions. For each output character of each example, the search walks through which DSL operation could produce that character, then labels the position as either derivable (some same-operator example fixes the operation) or a guess (no same-operator example constrains it). One step-by-step trace per puzzle becomes one training row.</p></li>
+<li><p>Qwen3.5-397B-A17B-FP8 + JupyterSandbox. Each puzzle is given to Qwen with one tool exposed: a Python sandbox. Within a single inference turn, Qwen runs the hypothesis-test loop itself by proposing a candidate lambda L, op, R: , calling the sandbox to execute it against every shown example pair, reading back per-example pass/fail, then either revising or commiting. I call a rule verified when the sandbox confirms it reproduces every shown example output exactly. Per puzzle, I generated 4 attempts and ended up with 2244 attempts. There were 1198 verified (the rest hit context limits, failed sandbox verification on at least one example, or didn't commit). The kept trace preserves both proposals and sandbox returns inline.</p></li>
+</ol>
+<p>Both trace types feed the same training recipe: SFT with a rank-128 LoRA on the Nemotron-Nano-30B base.</p>
+<ul>
+<li><p>Trained on the z3 traces alone (8332-row SFT including non-sym_tr categories): peak 1/53 on the held-out sym_tr val split. The single val puzzle the model got right had a uniform output (the keyed answer was one character repeated) and every character of the answer also appeared in the query input. Every other val puzzle required a rule shape the public DSL can't express.                                                                                                                                          </p></li>
+<li><p>Of the 1198 verified Qwen rules, 82% (982) used shapes the DSL can't express e.g. operator-conditional branching, cross-position arithmetic, aggregate operations.</p></li>
+<li><p>Adding those 982 Qwen traces to the SFT mix and retraining: regressed val 1/53 → 0/53.                                                                           </p></li>
+</ul>
+<p>The golden answer lives in a prior that neither the public DSL nor a 397B-parameter LLM with verified hypothesis search reliably samples from</p>"
+3454959,,2026-05-08 10:15:55.413000,0,"<p>Thank you — this is genuinely useful, and the sandbox-with-verification setup is something I wanted to try but couldn't get working within batch-cost constraints (the batch APIs I was using for cost reduction don't compose cleanly with tool-use loops). Good to see what the result looks like when someone actually does it.</p>
+<p>Two things stand out to me from your numbers:</p>
+<p>First, the 82% finding is the strongest version of the concern. If 982 out of 1198 verified Qwen rules — rules that demonstrably reproduce every shown example — use shapes outside the public DSL, that's direct empirical evidence that ""matches all examples"" and ""matches the keyed answer"" are pulling apart at scale, not just in edge cases. The same-operator distribution in my original post was suggestive; your number is the actual measurement.</p>
+<p>Second, the regression from 1/53 to 0/53 when adding the verified Qwen traces is the part I find most striking. SFT on rules that verifiably solve the shown examples hurt held-out performance. That's a clean signal that the keyed-answer prior is narrow enough that even self-consistent alternative hypotheses move the model away from it.</p>
+<p>For what it's worth, I have a small-sample observation that points the same direction:  I evaluated K2.5, K2.6, and DeepSeek V3.2 on the first 100 train puzzles, which included 11 symbol_transformation puzzles. K2.5 and DeepSeek hit 1/11 each, K2.6 hit 3/11. Small sample and not a symbol_transformation-targeted study like yours, but consistent with your conclusion that frontier-reasoning LLMs don't reliably sample from this prior.</p>
+<p>Your closing line is the right summary: the keyed answer lives in a prior that neither the public DSL nor a verified-hypothesis-search LLM reliably samples from. That makes the operationalization question — what grounds the keyed answer as canonical/natural/plausible — sharper rather than weaker.</p>"
+3454841,,2026-05-08 01:38:55.780000,2,"<p>For cryptarithm_deduce category of problems, Gemini AI recommended ""Constraint Satisfaction Problem (CSP) Backtracking solver"" - a python program does an elaborate brute-force search and finds the accurate solution. </p>
+<p>But how to give the reasoning for this solution?!😀 If you give one reasoning path, the model would only learn to provide perfect reasoning for a hallucinated answer!</p>
+<p>So, even if there is just one solution for the problem, we cannot make it as part of the reasoning CoTs</p>"
+3454975,,2026-05-08 10:39:17.527000,0,"<p>I think this is a significant practical risk for training, although I am not an expert in this topic. If I do find something significant in the literature I may drop it here.</p>"
+3454987,,2026-05-08 10:53:58.943000,2,"<p>you may be interested in this paper <a href=""https://arxiv.org/abs/2404.03683"" target=""_blank"">https://arxiv.org/abs/2404.03683</a>
+On Countdown (a pure CSP-style task), training on search trajectories with backtracking gives 51% vs. 26% for training on optimal paths only — roughly 2× better. Searchformer finds 5–10× smaller models suffice when trained on A* search dynamics vs. optimal plans.</p>
+<p>My take on this is training on optimal path can help but on trajectories with backtracking likely help more.</p>"
+3454832,,2026-05-08 01:06:23.643000,2,"<p>Did you notice that there are a lot of duplicate prompts in symbol transformation category?</p>
+<p>Only 54 prompts are unique in cryptarithm_deduce category and overall only 10% of around 1000 prompts are unique!</p>
+<p>I spent time and gpu hours on creating new accurate CoT and training for crypatrithm_deduce and equation_numeric, but there was no change in LB score, then I realized that I am training for some 21 prompts, 54 prompts etc!!</p>
+<p><img src=""https://www.googleapis.com/download/storage/v1/b/kaggle-forum-message-attachments/o/inbox%2F10218904%2F5edb96b48f890bfe1c4c7e14e7173c86%2FPicture1.jpg?generation=1778202058227263&amp;alt=media"" alt=""""></p>
+<p>Note: this analysis is on <a href=""https://www.kaggle.com/huikang"" target=""_blank"">@huikang</a>'s dataset titled 'problem_ids_matched.csv'</p>"
+3454833,,2026-05-08 01:11:00.813000,0,"<p>Another observation - I guess this one most would have noticed  - that in the 'guess' variety of prompts - almost all of them - have operators which are not there in in-context examples. </p>
+<p>But still  <a href=""https://www.kaggle.com/huikang"" target=""_blank"">@huikang</a>'s synthetic CoT gives elaborate boiler-plate reasoning only to be discarded when it comes to solution! But if I remove Tong's CoT, the score goes down!</p>
+<p>So, I think the objective is to learn both positive and negative examples - hence I recreated the CoT's to be more accurate..</p>"
+3454864,,2026-05-08 03:46:47.053000,0,"<p>In <a href=""https://www.kaggle.com/huikang"" target=""_blank"">@huikang</a> 's dataset, there are a lot of duplicated ""id"" values. That’s why training on that dataset gives about a ±0.85 LB score.</p>"
+3453541,,2026-05-05 16:44:49.443000,1,"<p>Hi <a href=""https://www.kaggle.com/ryanholbrook"" target=""_blank"">@ryanholbrook</a> and <a href=""https://www.kaggle.com/cpmpml"" target=""_blank"">@cpmpml</a> , this post raised some valid concerns that you might’ve missed. </p>
+<p>I personally think publishing the dsl / data generator is a bad idea, however, addressing the non-uniqueness of certain puzzles in symbol transformation category is reasonable.</p>"
+3453585,,2026-05-05 17:39:16.753000,2,"<p>The post expresses the complexity of induction. The issue is not limited by any mean to this competition.</p>
+<p>in arc agi2 I can often think of more than one possible function that solves a given puzzle.</p>
+<p>And in IQ tests I always struggle with series completion given I often can justify different logical continuations.</p>
+<p>There is no ""fix"" for induction. There are various methods to pick/learn the most plausible function given the input/output pairs.</p>"
+3454561,,2026-05-07 13:11:26.550000,2,"<p>Thanks for the response — and to concede the right thing first: you're correct that induction is formally underdetermined everywhere, including ARC-AGI-2 and IQ series. There's no formal ""fix"" for Hume, and I don't want to overclaim there.
+But I think the question I'm raising sits one step downstream of that. Given induction is underdetermined, how does a benchmark operationalize ""most plausible"" as ground truth? Different benchmarks answer this differently, and I think that's where symbol_transformation is currently under-specified relative to comparable work.
+ARC-AGI is actually a useful comparison precisely because it had a version of this problem and explicitly addressed it. The ARC-AGI-2 technical report (Chollet et al. 2025, arXiv:2505.11831) lists ""Lack of reliable first-party human testing data"" as one of the named limitations of ARC-AGI-1, noting that prior to ARC-AGI-2 there was no official first-party human baseline score derived under consistent conditions for the hidden tasks. They describe the consequence directly:</p>
+<p>""The lack of such a human baseline makes a definitive understanding of human performance challenging.""</p>
+<p>Their response in ARC-AGI-2 was to run extensive human-facing calibration testing: 407 unique participants attempting 1,848 candidate task test pairs, and a task only advanced from testing if at least two independent participants solved it within their first two attempts. After selection and validation, 100% of included tasks were solved by at least two non-expert human testers, with each task attempted by between 2 and 10 humans. So the ARC team's answer to the underdetermination problem was to ground ""the right answer"" in measured human convergence rather than treating the generator's output as ground truth by fiat.
+IQ tests do something analogous through psychometrics. Items are administered to a standardization sample before deployment, and item response theory, item discrimination, and differential-item-functioning analyses determine whether the keyed answer survives empirical scrutiny. Items where the keyed answer doesn't separate stronger from weaker reasoners get revised or dropped.
+Neither of these is a fix for induction. They're operationalizations — they turn ""most plausible function"" from a philosophical question into a measured one. That's the move I'm suggesting symbol_transformation is currently missing: the ground truth is what the generator emitted, without an independent check that competent solvers actually converge on it. As <a href=""https://www.kaggle.com/NguyenThanhNhan"" target=""_blank"">@NguyenThanhNhan</a> noted, addressing the non-uniqueness specifically (even without publishing the DSL) is the reasonable middle ground.
+Concretely: even a partial audit — running a subset of puzzles past a handful of solvers and measuring convergence rates on the keyed answer — would convert this from ""match the generator's unstated prior"" to ""match a measured prior."" Not arguing for a full re-curation, just that the gap between ""induction is hard"" and ""ground truth is generator-emitted without convergence validation"" is meaningful, and the latter is what the same-operator distribution makes me worry about.</p>"
+3454602,,2026-05-07 14:41:22.623000,0,"<p>Thanks for the response.</p>
+<p>If I understand your point correctly, you are saying: There is a implicit, hidden ""taste/preference"" of rules that the Data generator use and our job is to train the model to learn that taste beside learning to reason. Am I getting warm?</p>"
+3454609,,2026-05-07 14:49:07.670000,0,"<p>Yes, that's close.</p>
+<p>I would phrase it as: the task is not only testing whether the model can reason from examples, but also whether it can infer the generator's implicit prior over what counts as a ""natural"" rule.</p>
+<p>That is not automatically bad — all induction tasks need some prior. My concern is that if this prior is hidden and not validated by human convergence / DSL uniqueness checks / multiple-answer handling, then exact-match scoring may partly measure alignment with the generator's taste rather than derivability from the shown examples alone.</p>"
+3448421,,2026-04-25 13:09:00.063000,21,"<h1><code>symbol_transformation</code> would benefit from a stated rule class: finite examples cannot identify arbitrary operations</h1>
+<p>First off — thank you to the organizers for putting this benchmark together. Rule-induction puzzles are a great testbed, and I've enjoyed working on this category. I'd like to share a concern in the spirit of making the task even stronger, and I'd love to hear the team's thoughts.</p>
+<p>Quick terminology note: I don't mean to imply that <code>symbol_transformation</code> is an official competition label unless the organizers use that term elsewhere. I'm using it as a shorthand for the prompt family identifiable by wording like ""a secret set of transformation rules is applied to equations."" In other words, this is the equation/symbol rule-induction family, not a claim about a published taxonomy column.</p>
+<h2>TL;DR</h2>
+<p>The <code>symbol_transformation</code> tasks ask models to infer hidden operations from a few examples. My worry is that finite examples cannot uniquely determine an arbitrary binary operation: for any proposed query answer, one can construct a function that fits all given examples and still produces that answer. So the task is well-defined only relative to a restricted rule class or DSL. Without publishing or validating against that rule class, exact-match scoring may end up measuring prior-matching more than reasoning from the examples. I suggest a few small changes below that I think could meaningfully sharpen the category.</p>
+<h2>The underlying issue: finite examples do not identify a binary operation</h2>
+<p>I want to raise this constructively. The puzzles being hard is not the issue — hard rule-induction puzzles are valuable, and that's part of what drew me to this category. The concern is narrower: unless the benchmark specifies a restricted class of allowed rules, the target answer isn't mathematically determined by the examples alone.</p>
+<p>A typical puzzle is asking the model to infer a hidden binary operation:</p>
+<p>$$
+f(x, y) = z
+$$</p>
+<p>from finitely many examples:</p>
+<p>$$
+\begin{aligned}
+f(x_1, y_1) &amp;= z_1 \
+f(x_2, y_2) &amp;= z_2 \
+&amp;\vdots \
+f(x_n, y_n) &amp;= z_n
+\end{aligned}
+$$</p>
+<p>and then apply it to a held-out query:</p>
+<p>$$
+f(x_q, y_q) = ?
+$$</p>
+<p>From finitely many input-output examples, an arbitrary function $f$ is never uniquely identifiable. This isn't just a philosophical point — the ambiguity can be made fully explicit.</p>
+<p>First, encode each input pair $(x, y)$ as a single integer $t$ (for example, by concatenating the two strings with a separator and mapping the result injectively to an integer). Encode outputs as integers as well. The examples then become:</p>
+<p>$$
+\begin{aligned}
+t_1 &amp;\to z_1 \
+t_2 &amp;\to z_2 \
+&amp;\vdots \
+t_n &amp;\to z_n
+\end{aligned}
+$$</p>
+<p>Now pick any desired answer $a$ for the query point $t_q$. As long as $t_q$ is distinct from the observed $t_i$, we can construct a polynomial $Q_a(t)$ such that:</p>
+<p>$$
+\begin{aligned}
+Q_a(t_i) &amp;= z_i \quad \text{for every observed example} \
+Q_a(t_q) &amp;= a \quad \text{for the held-out query}
+\end{aligned}
+$$</p>
+<p>One explicit construction is Lagrange interpolation. Define the augmented point set:</p>
+<p>$$
+(t_1, z_1), \dots, (t_n, z_n), (t_q, a)
+$$</p>
+<p>Then set:</p>
+<p>$$
+Q_a(t) = \sum_j z_j \prod_{k \neq j} \frac{t - t_k}{t_j - t_k}
+$$</p>
+<p>where the sum ranges over all observed points plus the query point.</p>
+<p>By construction, this polynomial agrees with every provided example and gives the query answer $a$. Since $a$ was arbitrary, every possible query answer is consistent with the examples under some valid function.</p>
+<p>There are in fact infinitely many such functions. Once we have one interpolating polynomial $Q_a(t)$, we can add:</p>
+<p>$$
+R(t) \cdot (t - t_1)(t - t_2)\dots(t - t_n)(t - t_q)
+$$</p>
+<p>for any polynomial $R(t)$. This changes the function elsewhere while preserving every observed example and the chosen query answer. So the finite examples don't identify one operation; they identify an infinite equivalence class of operations.</p>
+<h2>Why this matters for the benchmark</h2>
+<p>Of course, human solvers don't consider arbitrary polynomials over encoded strings. People naturally prefer ""simple"" rules: digit-wise arithmetic, concatenation, reversal, indexing, sorting, substitution, deletion, and so on. That's a perfectly reasonable design choice, and I suspect it's what the generator is leaning on too.</p>
+<p>The friendly suggestion is just that, in that case, it would help if the benchmark either specified the restricted rule family or validated that the official answer is unique within it. Without such a rule class, the puzzle is effectively asking:</p>
+<blockquote>
+  <p>Which hidden rule did the puzzle generator probably have in mind?</p>
+</blockquote>
+<p>rather than:</p>
+<blockquote>
+  <p>What answer follows from the examples?</p>
+</blockquote>
+<p>Both are interesting tasks, but they're different. The first one rewards alignment with an unstated prior over ""natural"" transformations more than reasoning from the examples themselves, and I think competitors and the organizers would both prefer the second framing.</p>
+<h2>Same-operator evidence</h2>
+<p>This matters more in practice because many puzzles provide very few examples involving the operator used in the query. Across 1,555 puzzles in our solver run:</p>
+<table>
+<thead>
+<tr>
+<th>same-operator examples available for the query</th>
+<th>count</th>
+<th>share</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>300</td>
+<td>19.3%</td>
+</tr>
+<tr>
+<td>1</td>
+<td>626</td>
+<td>40.3%</td>
+</tr>
+<tr>
+<td>2</td>
+<td>442</td>
+<td>28.4%</td>
+</tr>
+<tr>
+<td>3</td>
+<td>156</td>
+<td>10.0%</td>
+</tr>
+<tr>
+<td>4+</td>
+<td>31</td>
+<td>2.0%</td>
+</tr>
+</tbody>
+</table>
+<p>So about <strong>88%</strong> of puzzles provide at most two examples involving the query's operator, and about <strong>60%</strong> provide at most one.</p>
+<p>This statistic alone doesn't prove that every such puzzle is ambiguous — and I don't want to overclaim. But it points to a structural risk: under any reasonably broad family of digit/string transformations, one or two same-operator examples are often not enough to distinguish between many simple candidate rules.</p>
+<p>Different-operator examples can help, but only if the puzzle states that all operators share a common meta-rule. If the prompt doesn't specify such a meta-rule, then examples involving <code>|</code>, <code>\</code>, <code>-</code>, or other operators may not logically constrain the queried operator at all.</p>
+<p>Here's a concrete example that illustrates the concern (shared not to single it out, just because it's compact):</p>
+<pre><code>34/44 = 1
+41/32 = 9
+34|25 = 69
+87\64 = 8853
+Now, determine the result for: 69/52
+</code></pre>
+<p>The official training label is:</p>
+<pre><code>17/
+</code></pre>
+<p>The query uses <code>/</code>, but only two examples use <code>/</code>: <code>34/44 = 1</code> and <code>41/32 = 9</code>. The other two examples use <code>|</code> and <code>\</code>. Unless the prompt establishes a shared meta-rule tying these operators together, those examples don't determine what <code>/</code> should do on a new input. Many different functions can satisfy:</p>
+<p>$$
+\begin{aligned}
+f_{/}(34, 44) &amp;= 1 \
+f_{/}(41, 32) &amp;= 9
+\end{aligned}
+$$</p>
+<p>while giving different outputs for:</p>
+<p>$$
+f_{/}(69, 52)
+$$</p>
+<h2>Consequences for evaluation and training</h2>
+<p>I think this affects both evaluation and training, and I want to flag the training side carefully because it's where I think the impact is most actionable.</p>
+<p>For evaluation, exact-match scoring implicitly assumes the official answer is uniquely determined. If multiple simple rules fit the visible examples and produce different query outputs, exact-match accuracy may reward models that share the generator's prior over models that correctly recognize the underdetermination.</p>
+<p>For training, the concern is a bit sharper. If these examples are used for SFT or RL data and the official answer is fixed as ground truth, rationale-generating models can be nudged toward post-hoc explanations — producing a plausible-looking rationale for the selected label rather than genuinely deriving the answer from the examples. For a reasoning benchmark, that's worth being careful about, since it can train the appearance of reasoning on prompts that are underdetermined.</p>
+<h2>Concrete fixes (offered as suggestions, not demands)</h2>
+<p>I realize re-curating a dataset of this size is a lot of work, and I don't want to underestimate that. With that caveat, a few directions that I think could meaningfully strengthen the category:</p>
+<ol>
+<li><strong>Publish the rule DSL or generation process.</strong> If the task is rule induction, knowing the intended hypothesis class would let competitors search a defined space rather than guess at the prior.</li>
+<li><strong>Validate uniqueness programmatically.</strong> Enumerate a DSL of simple transformations and flag any puzzle where two non-equivalent rules fit all examples but produce different query answers. Even running this as a one-time audit on the existing dataset would be informative.</li>
+<li><strong>Require more directly relevant examples.</strong> For instance, at least three or four examples using the same operator as the query — or alternatively, drop the multi-operator framing unless the cross-operator meta-rule is made explicit.</li>
+<li><strong>Allow <code>underdetermined</code> as a valid answer label</strong>, possibly for partial credit. A model that correctly recognizes insufficient information is showing a form of reasoning rather than a failure of it.</li>
+<li><strong>Consider set-valued ground truth.</strong> Accept any answer produced by a rule that fits all examples within the stated DSL.</li>
+</ol>
+<p>Even partial adoption — e.g. just publishing the DSL — would go a long way.</p>
+<h2>Closing</h2>
+<p>To be clear, I'm not suggesting ambiguity should be eliminated completely. Some ambiguity is natural and even interesting in puzzle solving, and I appreciate the spirit of the task. But if the benchmark aims to measure reasoning, it would be great if the official answer were derivable from the examples under a stated rule class.</p>
+<p>As currently presented, the category appears to lean on an unstated simplicity prior. Making that prior explicit, or validating uniqueness within it, would make this a stronger and fairer test of rule induction — and I'd be happy to help where I can. I'm glad to share the solver run that produced the same-operator distribution, and I'd be keen to contribute a uniqueness-checker against any DSL the organizers are willing to share.</p>
+<p>Thanks again to the organizers for the work that's gone into this, and to anyone reading for considering the suggestion.</p>"
+3455311,,2026-05-09 04:17:33.140000,0,<p>Are you able to provide a few example from the training samples to show that indeed there exist questions where more than one answer fit the provided query and examples?</p>

@@ -1,0 +1,186 @@
+id,authorName,postDate,votes,content
+3453960,,2026-05-06 09:21:05.257000,12,"<p>Hey everyone, </p>
+<p>Over the last week, I went down a massive rabbit hole trying to improve the synthetic Chain of Thought (CoT) generation for the hard categories in this competition (<code>cryptarithm_deduce</code>, <code>cryptarithm_guess</code>, <code>equation_numeric_guess</code>). </p>
+<p>I managed to write a much better deterministic algorithm to solve these, pushing my synthetic dataset accuracy from the baseline <strong>87.7% to 95.8%</strong>. I assumed this would guarantee a leaderboard boost. Instead, my first few runs crashed to 0.73, and even my stabilized runs hovered around 0.82–0.84, failing to beat the 0.85 baseline. </p>
+<p>I wanted to share exactly why a ""better"" dataset doesn't automatically equal a better LB score, and the three massive traps I fell into (and how to fix them).</p>
+<h4>The Data Comparison</h4>
+<p>Here is the baseline (Tong's) generation vs. my custom generation. Notice the massive jump in the hard categories:</p>
+<p><strong>Original Baseline (LB ~0.85):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Total</th>
+<th>Accuracy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bit_manipulation</td>
+<td>1602</td>
+<td>85.1%</td>
+</tr>
+<tr>
+<td>cipher</td>
+<td>1576</td>
+<td>100.0%</td>
+</tr>
+<tr>
+<td><strong>cryptarithm_deduce</strong></td>
+<td>659</td>
+<td><strong>8.2%</strong></td>
+</tr>
+<tr>
+<td><strong>cryptarithm_guess</strong></td>
+<td>164</td>
+<td><strong>6.7%</strong></td>
+</tr>
+<tr>
+<td>equation_numeric_deduce</td>
+<td>596</td>
+<td>90.6%</td>
+</tr>
+<tr>
+<td><strong>equation_numeric_guess</strong></td>
+<td>136</td>
+<td><strong>15.4%</strong></td>
+</tr>
+<tr>
+<td>gravity</td>
+<td>1597</td>
+<td>100.0%</td>
+</tr>
+<tr>
+<td>numeral</td>
+<td>1576</td>
+<td>100.0%</td>
+</tr>
+<tr>
+<td>unit_conversion</td>
+<td>1594</td>
+<td>100.0%</td>
+</tr>
+<tr>
+<td><strong>TOTAL</strong></td>
+<td><strong>9500</strong></td>
+<td><strong>87.7%</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>My Custom Generation (LB ~0.82-0.84):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Total</th>
+<th>Accuracy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bit_manipulation</td>
+<td>1602</td>
+<td>85.1%</td>
+</tr>
+<tr>
+<td>cipher</td>
+<td>1576</td>
+<td>100.0%</td>
+</tr>
+<tr>
+<td><strong>cryptarithm_deduce</strong></td>
+<td>659</td>
+<td><strong>89.8%</strong></td>
+</tr>
+<tr>
+<td><strong>cryptarithm_guess</strong></td>
+<td>164</td>
+<td><strong>85.4%</strong></td>
+</tr>
+<tr>
+<td>equation_numeric_deduce</td>
+<td>596</td>
+<td>90.6%</td>
+</tr>
+<tr>
+<td><strong>equation_numeric_guess</strong></td>
+<td>136</td>
+<td><strong>92.6%</strong></td>
+</tr>
+<tr>
+<td>gravity</td>
+<td>1597</td>
+<td>100.0%</td>
+</tr>
+<tr>
+<td>numeral</td>
+<td>1576</td>
+<td>100.0%</td>
+</tr>
+<tr>
+<td>unit_conversion</td>
+<td>1594</td>
+<td>100.0%</td>
+</tr>
+<tr>
+<td><strong>TOTAL</strong></td>
+<td><strong>9500</strong></td>
+<td><strong>95.8%</strong></td>
+</tr>
+</tbody>
+</table>
+<h4>Trap 1: Algorithmic Complexity vs. LLM Learnability (The Logprob Test)</h4>
+<p>Just because a Python script can solve a cryptarithm perfectly using backtracking or constraint solving doesn’t mean a language model can learn to predict those same steps token by token.</p>
+<p>I checked this by looking at the base model’s loss (negative log probability) across different datasets:</p>
+<h3>AVG DIFFERNCE :</h3>
+<ul>
+<li><code>cryptarithm_deduce</code>: ~0.4</li>
+<li><code>cryptarithm_guess</code>: ~0.20–0.3</li>
+<li><code>equation_numeric_guess</code>: roughly the same as <code>Tong's</code></li>
+</ul>
+<p>The takeaway is simple but easy to miss. Even though the data was correct, the reasoning paths in the “deduce” set were heavier and harder for the model to follow. Lower logprob data tends to be easier for the model to learn, even if it’s less “clean” from a traditional algorithmic point of view.
+Refer to LogProb Data <a href=""https://www.kaggle.com/datasets/tahaalam2009/nemotron-0-90"" target=""_blank"">Here</a></p>
+<h4>Trap 2: Catastrophic Forgetting via Oversampling</h4>
+<p>Because my hard categories only made up ~10% of the dataset, I initially oversampled them by 14x. <strong>This resulted in an LB score of 0.73.</strong> </p>
+<p>By force-feeding the model massively complex cryptarithm gradients (with a standard learning rate of <code>2e-4</code>), I triggered gradient saturation. The optimizer prioritized memorizing the hard math, and in doing so, it violently overwrote the base model's knowledge of basic math, gravity, and ciphers. </p>
+<p><em>Fix:</em> Cap oversampling at 3x, lower the learning rate to <code>5e-5</code>, and increase gradient accumulation to 64 to smooth the updates. </p>
+<h4>My Notebooks &amp; Datasets</h4>
+<p>If anyone wants to look at the code, the logprob filter, or the 95% dataset, here they are:</p>
+<ul>
+<li><strong>Datasets:</strong><ul>
+<li><a href=""https://www.kaggle.com/datasets/tahaalam2009/nemotron-0-90"" target=""_blank"">Nemotron-0-90 (The 95.8% Dataset)</a></li>
+<li><a href=""https://www.kaggle.com/datasets/tahaalam2009/nemotron-logprob"" target=""_blank"">Nemotron-Logprob (Pre-computed losses)</a></li></ul></li>
+<li><strong>Notebooks:</strong><ul>
+<li><a href=""https://www.kaggle.com/code/tahaalam2009/nemotron-batched-logprob-filter-train"" target=""_blank"">Batched Logprob Filter + Train</a></li>
+<li><a href=""https://www.kaggle.com/code/tahaalam2009/end-to-end-finetuning-for-lb-0-82-csv-custom"" target=""_blank"">End-to-End Finetuning for LB 0.82</a></li>
+<li><a href=""https://www.kaggle.com/code/tahaalam2009/nemotron-sft-final-0-83-lb"" target=""_blank"">Nemotron SFT Final 0.83 LB</a></li></ul></li>
+</ul>
+<p><strong>TL;DR:</strong> To win, you can't just have a 100% accurate synthetic generator. You must merge your hard CoTs with the easy baseline data (to act as an anchor), manage your gradients so you don't overwrite base knowledge, and ensure your token masking is bulletproof. </p>
+<p>Happy to hear if anyone else ran into the gradient saturation wall!
+Any Suggestions? then drop down! ;D</p>"
+3453973,,2026-05-06 10:33:41.453000,6,"<p><a href=""https://www.kaggle.com/tahaalam2009"" target=""_blank"">@tahaalam2009</a>
+Why do you think this is better CoT and correct solution?</p>
+<pre><code>Based on character frequency heuristics, we guess the answer.
+
+  output: 【@&amp;】-&gt; 【{@&amp;}】
+</code></pre>"
+3454003,,2026-05-06 12:28:05.287000,-3,"<p>I haven't evaluated the dataset even once , i get it now its just filled with garbage</p>"
+3454008,,2026-05-06 12:36:53.893000,-1,<p>I made a dataset so trash never realized how bad it was 🥀</p>
+3454021,,2026-05-06 12:52:06.877000,1,"<p>I think you have to make your algorithm appeal to its priors because you're limited in how much you can move the model from its base.  I came up with a very clever and mechanical way to solve bits, but I had to over-engineer it to fit in the 7.8k context (like converting Binary to Hex) -- my average loss was sub 0.01 , but it translated to only about 12% accuracy.  Too expensive for me to keep trying that route though (long traces == expensive to train).</p>
+<p>Almost all my success has been keeping all traces less than 1300 tokens.  (Originally 900).</p>
+<p>It feels impossible to iterate over long traces -- as least with what I know.   Takes several hours for an eval, and very expensive to train!</p>"
+3456281,,2026-05-11 16:30:11.057000,0,"<p><a href=""https://www.kaggle.com/tahaalam2009"" target=""_blank"">@tahaalam2009</a> - theres something very fishy about your results </p>
+<p>cryptarithm_guess    164 85.4%
+equation_numeric_deduce    596 90.6%
+equation_numeric_guess    136 92.6%</p>
+<p>how can the guess categories achieve parity w/ the non-guess categories?</p>
+<p>even if you SMT solved these problems (which definitely is not a COT compatible algorithm) I dont think these results are possible</p>
+<p>Are you sure you aren't passing the golden answer into your solver?</p>"
+3456678,,2026-05-12 12:17:46.177000,0,"<p>Yeah, after digging deeper I realized a lot of the dataset I generated was honestly pretty garbage for SFT. My assumption was that forcing the model to “guess” more would improve generalization, but that mostly didn’t translate into better LB performance.
+BUT it went from 1.5% -&gt; 15.3%
+That said, the cryptarithm_guess category actually <em>did</em> improve on the validation script, which is why I initially thought the approach was working. I wasn’t passing any golden answers into the solver  the issue was more that the generated CoTs were noisy/non-learnable and the model couldn’t effectively absorb them.</p>
+<p>So the main lesson for me was that solver correctness != learnable reasoning traces for an LLM.</p>"
+3454323,,2026-05-06 22:27:28.903000,0,<p>I went all in initially on strong solvers and arrived at exactly the same conclusion as you.  I'm still hunting like most of the field sitting at 0.86LB waiting for that aha that gets at last a 0.01 - 0.02 bump with deterministic scoring.  </p>
+3454152,,2026-05-06 16:37:29.890000,0,"<p>You also need to remember the winner model multiplied by 11 in the cry sample, which is more memorization than anything else.</p>"
+3453965,,2026-05-06 09:42:01.807000,-1,
+3453969,,2026-05-06 10:03:09.883000,0,"<p>I understand that, but I don’t see why a better algorithm wouldn’t improve generalization  shouldn’t clearer, more accurate reasoning help the model learn better? and also log probs dont differ much between two</p>"

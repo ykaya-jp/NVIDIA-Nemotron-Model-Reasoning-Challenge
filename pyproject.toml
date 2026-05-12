@@ -1,0 +1,77 @@
+[project]
+name = "nvidia-nemotron-model-reasoning-challenge"
+version = "0.0.1"
+description = "Kaggle NLP / LLM competition: nvidia-nemotron-model-reasoning-challenge"
+requires-python = ">=3.11"
+dependencies = [
+    "kagglib",
+    "kaggle>=1.6",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "polars>=1.0",
+    "pyarrow>=15.0",
+    "scikit-learn>=1.5",
+    "scipy>=1.13",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+    "mlflow>=2.16",
+    "optuna>=4.0",
+    "tqdm>=4.66",
+    "pyyaml>=6.0",
+    "duckdb>=1.0",
+    "ipykernel>=6.29",
+    "jupyterlab>=4.2",
+    # NLP-specific
+    "torch>=2.4",
+    "transformers>=4.45",
+    "datasets>=3.0",
+    "accelerate>=1.0",
+    "peft>=0.13",
+    "bitsandbytes>=0.44",
+    "sentencepiece>=0.2",
+    "tiktoken>=0.8",
+    "evaluate>=0.4",
+    # vLLM / unsloth は CUDA build が重いので必要時に `uv add` で個別追加
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "pre-commit>=4.0",
+    "nbstripout>=0.7",
+]
+
+[tool.uv.sources]
+kagglib = { path = "../_shared/kagglib", editable = true }
+torch = [{ index = "pytorch-cu124", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nvidia_nemotron_model_reasoning_challenge"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    "docs/research_kernels",  # other people's public Kaggle notebooks, do not lint
+    "docs/discussion",
+    "data",
+    "outputs",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

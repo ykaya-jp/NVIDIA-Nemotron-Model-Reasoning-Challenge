@@ -1,0 +1,32 @@
+id,authorName,postDate,votes,content
+3455360,,2026-05-09 07:56:08.270000,30,"<p>I have been using this gold-conditioned symbolic solver to study the rule structure of the <code>equation_symbolic</code> category.</p>
+<p>To be clear, this is not an inference-time competition solution. The solver uses the known target answer as a constraint, so it should be viewed as a research oracle rather than something directly usable in a Kaggle submission.</p>
+<p>What it shows is that for many examples, there exists a latent symbolic rule that can explain the puzzle.</p>
+<p>Given the gold answer, the solver searches for and exposes a full latent program, including:</p>
+<ul>
+<li>the symbol-to-digit mapping</li>
+<li>the operator choices</li>
+<li>the solving mode / interpretation mode</li>
+<li>the numeric value implied by the query</li>
+<li>whether the same latent program is consistent with all demonstration examples
+The program must be consistent with both the demonstration examples and the target query.</li>
+</ul>
+<p>Current result on the 823 <code>equation_symbolic</code> training examples:</p>
+<ul>
+<li>800 / 823 solved</li>
+<li>0 wrong answers</li>
+<li>23 no solution found</li>
+<li>97.2% coverage</li>
+</ul>
+<p>My interpretation is that this category is not random: most cases appear to have recoverable symbolic structure. The solver exposes that latent structure.</p>
+<p>However, this does not mean that a model can naturally infer the same rule from the prompt. It also does not mean that a generated CoT trace reflects the natural reasoning order. In my experiments, there is still a large gap between explicit symbolic search and what a single-pass LoRA model can learn through SFT.</p>
+<p>So the main takeaway for me is:</p>
+<p><code>equation_symbolic</code> seems highly explainable with symbolic search: the solver can recover hidden structure such as digit mappings, operator choices, and interpretation modes. The hard part is transferring this into ordinary model generation, because the candidate space is huge and the model has to infer the mapping, operators, and reasoning path from the prompt alone.</p>
+<p>The code is <a href=""https://github.com/lkevincc0/kaggle-nemotron-equation-symbolic"" target=""_blank"">here</a>, website is <a href=""https://lkevincc0.github.io/kaggle-nemotron-equation-symbolic"" target=""_blank"">here</a>, dataset is <a href=""https://github.com/lkevincc0/kaggle-nemotron-equation-symbolic/raw/refs/heads/main/data/solver_results.parquet"" target=""_blank"">here</a></p>
+<p><img src=""https://www.googleapis.com/download/storage/v1/b/kaggle-forum-message-attachments/o/inbox%2F24473636%2Fa6f9fd6dfa387114b0d8e91519d033f4%2FScreenshot%202026-05-09%20at%205.49.25PM.png?generation=1778313060655176&amp;alt=media"" alt=""""></p>"
+3455478,,2026-05-09 14:23:11.997000,1,"<p>Thanks for making the dataset accessible!</p>
+<p>Currently <a href=""https://lkevincc0.github.io/kaggle-nemotron-equation-symbolic/"" target=""_blank"">https://lkevincc0.github.io/kaggle-nemotron-equation-symbolic/</a> returns </p>
+<pre><code>failed: Invalid Error: Opening file 'solver_results.parquet' failed with error: NetworkError: Failed to execute 'send' on 'XMLHttpRequest': Failed to load 'https://github.com/lkevincc0/kaggle-nemotron-equation-symbolic/raw/refs/heads/main/data/solver_results.parquet'.
+</code></pre>"
+3455502,,2026-05-09 15:12:40.410000,0,
+3455593,,2026-05-09 19:19:39.633000,2,"<p>Thanks! I fix it, should be good now.</p>"
