@@ -29,7 +29,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
-from . import solver_cipher, solver_physics, solver_roman, solver_unit
+from . import solver_bit, solver_cipher, solver_physics, solver_roman, solver_unit
 from .type_classifier import classify
 
 SYSTEM_PROMPT = (
@@ -164,14 +164,31 @@ def _cot_cipher(prompt: str) -> tuple[str, str] | None:
 # Public entry point
 # -----------------------------------------------------------------
 
+
+def _cot_bit(prompt: str) -> tuple[str, str] | None:
+    answer = solver_bit.solve(prompt)
+    if answer is None:
+        return None
+    rationale = (
+        "Each output bit can be expressed as a boolean function of a "
+        "small subset (1-3) of the input bits. I brute-force enumerate "
+        "boolean functions of growing arity (k = 1, 2, 3) and pick the "
+        "unique function per output bit that agrees with every "
+        "demonstration example. Then I apply the recovered functions "
+        "to the query input bit-by-bit.\n\n"
+        f"Resulting 8-bit output: {answer}."
+    )
+    return rationale, answer
+
+
 _COT_WRITERS: dict[str, Callable[[str], tuple[str, str] | None]] = {
     "roman": _cot_roman,
     "physics": _cot_physics,
     "unit": _cot_unit,
     "cipher": _cot_cipher,
-    # bit / equation are handled by the abstention path until their
-    # solvers are implemented; the LLM still gets the answer to learn
-    # the format.
+    "bit": _cot_bit,
+    # equation handled by the abstention path until that solver is
+    # implemented; the LLM still gets the answer to learn the format.
 }
 
 
