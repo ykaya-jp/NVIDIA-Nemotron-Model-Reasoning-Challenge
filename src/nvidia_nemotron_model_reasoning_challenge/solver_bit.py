@@ -136,5 +136,12 @@ def solve(prompt: str) -> str | None:
         k2_preds = {_apply(s, t, query) for s, t in _candidate_functions(examples, ob, 2)}
         if k2_preds and k2_preds != k1_preds:
             return None
+        # Codex review 3 §1 originally suggested a k=3 veto here, but
+        # empirically the k=3 hypothesis space is severely under-
+        # constrained by 7-11 example pairs (256 truth tables per
+        # subset, only ~256 / 2^bits combinations observed), so its
+        # query predictions are nearly always {0,1}. Adding a k=3
+        # veto drops attempted-rate to 0. We instead rely on k=1+k=2
+        # agreement, which gave 46 attempted at 100% accuracy on train.
         out_bits[ob] = next(iter(k1_preds))
     return "".join(str(b) for b in out_bits)

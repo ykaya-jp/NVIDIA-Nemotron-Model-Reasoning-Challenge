@@ -217,6 +217,25 @@ if TRAIN_ON_KAGGLE:
     keep = [i for i, r in enumerate(rows) if r["source"].startswith("solver")]
     ds = ds.select(keep)
     print(f"after filtering to verifier-backed only: {len(ds)} records")
+
+    # Codex review 3 §3 — upsample under-represented bit/cipher rows
+    # so they survive epoch-1 gradient mass. The four "easy" types
+    # contribute ~1576-1597 each; bit is 46 (~3% of physics) and
+    # cipher is 605. Repeat bit 13× and cipher 2× to bring them
+    # into a comparable order of magnitude without dominating.
+    upsample = {"solver_bit": 13, "solver_cipher": 2}
+    extra_indices: list[int] = []
+    for i in keep:
+        n = upsample.get(rows[i]["source"], 1)
+        if n > 1:
+            extra_indices.extend([i] * (n - 1))
+    if extra_indices:
+        from datasets import concatenate_datasets
+
+        extra_ds = Dataset.from_list([render(rows[i]) for i in extra_indices])
+        ds = concatenate_datasets([ds, extra_ds]).shuffle(seed=42)
+        print(f"after upsampling bit/cipher: {len(ds)} records")
+
     print("sample text length:", len(ds[0]["text"]))
 
 # ====================================================================
@@ -244,10 +263,35 @@ if TRAIN_ON_KAGGLE:
         report_to="none",
     )
 
+    # Codex review 3 §5 — completion-only loss masking. By default
+    # SFTTrainer computes loss on every token, which wastes gradient
+    # on the prompt and risks over-fitting the system prompt template.
+    # DataCollatorForCompletionOnlyLM masks everything before the
+    # assistant-turn boundary so loss only sees the assistant rationale.
+    from trl import DataCollatorForCompletionOnlyLM
+
+    # The assistant boundary token sequence depends on the model's
+    # chat template; we sample one rendered prompt to find it.
+    sample_prompt = tokenizer.apply_chat_template(
+        [{"role": "user", "content": "X"}],
+        tokenize=False,
+        add_generation_prompt=True,
+        enable_thinking=True,
+    )
+    # Everything after the last "Assistant:" / model-specific marker
+    # is the response. We pass the rendered prompt's *suffix* as the
+    # response template; if Nemotron uses a custom tag, swap below.
+    response_template = sample_prompt[-40:]
+    print(f"completion-only response_template (last 40 chars of prompt): {response_template!r}")
+    collator = DataCollatorForCompletionOnlyLM(
+        response_template=response_template, tokenizer=tokenizer
+    )
+
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
         train_dataset=ds,
+        data_collator=collator,
         dataset_text_field="text",
         max_seq_length=MAX_SEQ_LEN,
         args=args,
