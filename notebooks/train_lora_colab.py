@@ -47,25 +47,39 @@ ADAPTER_DIR = "/content/drive/MyDrive/nemotron-2026/adapter_v1"
 os.makedirs(ADAPTER_DIR, exist_ok=True)
 
 # ====================================================================
-# Cell 2 — Dependencies (Unsloth + TRL + transformers)
+# Cell 2 — Dependencies (Unsloth official install pattern for Colab)
 # ====================================================================
-# Colab base image already has torch with CUDA. Add Unsloth and TRL.
-subprocess.run(
-    [
-        "pip",
-        "install",
-        "-q",
-        "unsloth==2025.11.5",
-        "trl==0.13.0",
-        "transformers>=4.46",
-        "datasets",
-        "accelerate",
-        "bitsandbytes",
-        "peft",
-        "sentencepiece",
-    ],
-    check=True,
-)
+# Use the Unsloth-recommended Colab install pattern. The single
+# `pip install unsloth==xxx` form caused dependency conflicts (= torch,
+# transformers) on Python 3.12. The split below installs Unsloth first
+# (it pulls compatible torch/triton), then forces the latest nightly
+# from GitHub with --no-deps so we don't downgrade Colab's CUDA torch.
+# Reference: https://docs.unsloth.ai/get-started/installing-+-updating
+import subprocess
+import sys
+
+
+def _run(cmd):
+    """Run shell command, stream output to the cell so the user sees errors."""
+    print(f"$ {' '.join(cmd)}")
+    subprocess.run(cmd, check=True)
+
+
+# Step 1: install Unsloth + the heavy deps it knows about.
+_run([sys.executable, "-m", "pip", "install", "-q", "unsloth"])
+
+# Step 2: force the nightly version + companion libs without resolving
+# torch (Colab already ships a compatible CUDA torch wheel).
+_run([sys.executable, "-m", "pip", "install", "-q",
+      "--upgrade", "--no-deps", "--force-reinstall",
+      "unsloth_zoo"])
+
+# Step 3: trl + extras we depend on. transformers and peft come along
+# with unsloth's pin so don't re-pin them here.
+_run([sys.executable, "-m", "pip", "install", "-q",
+      "trl", "datasets", "accelerate", "bitsandbytes",
+      "sentencepiece", "nbformat"])
+
 import torch
 
 print(
