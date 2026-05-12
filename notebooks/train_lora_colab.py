@@ -80,6 +80,18 @@ _run([sys.executable, "-m", "pip", "install", "-q",
       "trl", "datasets", "accelerate", "bitsandbytes",
       "sentencepiece", "nbformat"])
 
+# Step 4: Mamba-SSM + causal-conv1d. Nemotron-3-Nano-30B is a hybrid
+# Mamba-Transformer architecture and the HF modeling code refuses to
+# import without these two C++ extensions. `--no-build-isolation` is
+# critical: it tells pip to use the torch already installed in this
+# environment when compiling the CUDA kernels (otherwise pip spawns
+# an isolated build env, doesn't see torch, and fails).
+# First build can take 5-10 min on Colab A100; subsequent runs hit
+# the cache instantly.
+_run([sys.executable, "-m", "pip", "install", "-q",
+      "--no-build-isolation",
+      "mamba-ssm", "causal-conv1d"])
+
 import torch
 
 print(
