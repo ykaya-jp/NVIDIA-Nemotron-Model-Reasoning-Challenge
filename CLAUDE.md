@@ -8,7 +8,7 @@
 ## CRITICAL: Session start protocol
 
 1. 本ファイル read
-2. **Latest HANDOFF: `docs/dev/HANDOFF-2026-05-13.md`** ★ ← 必ず first read
+2. **Latest HANDOFF: `docs/dev/HANDOFF-2026-05-14.md`** ★ ← 必ず first read
 3. git log + `kaggle competitions submissions nvidia-nemotron-model-reasoning-challenge` で最新確認
 4. handoff doc "Next session 即 action" を実行
 
