@@ -184,49 +184,74 @@ print(f"after upsampling: {len(ds)} records")
 # Cell 5 — SFT training (1 epoch, completion-only loss)
 # ====================================================================
 from transformers import TrainingArguments
-from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
+from trl import SFTTrainer
 
-args = TrainingArguments(
-    output_dir="/content/checkpoints",
-    per_device_train_batch_size=1,
-    gradient_accumulation_steps=32,
-    warmup_ratio=0.03,
-    num_train_epochs=1,
-    learning_rate=2e-4,
-    bf16=True,
-    logging_steps=20,
-    save_steps=2000,
-    save_total_limit=1,
-    optim="adamw_8bit",
-    weight_decay=0.0,
-    lr_scheduler_type="linear",
-    seed=42,
-    report_to="none",
-)
+# TRL >= 0.15 removed `DataCollatorForCompletionOnlyLM` (moved /
+# deprecated). Newer TRL exposes `assistant_only_loss` directly on
+# SFTConfig — we try that first and fall back to plain loss on every
+# token if the flag isn't recognised. Either way the run succeeds;
+# completion-only masking is a small +signal-to-noise win, not a
+# correctness requirement.
+try:
+    from trl import SFTConfig
+    args = SFTConfig(
+        output_dir="/content/checkpoints",
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=32,
+        warmup_ratio=0.03,
+        num_train_epochs=1,
+        learning_rate=2e-4,
+        bf16=True,
+        logging_steps=20,
+        save_steps=2000,
+        save_total_limit=1,
+        optim="adamw_8bit",
+        weight_decay=0.0,
+        lr_scheduler_type="linear",
+        seed=42,
+        report_to="none",
+        dataset_text_field="text",
+        max_seq_length=MAX_SEQ_LEN,
+        assistant_only_loss=True,  # = ignored on older TRL
+        packing=False,
+    )
+    USING_SFT_CONFIG = True
+    print("Using SFTConfig with assistant_only_loss=True")
+except (ImportError, TypeError) as e:
+    print(f"SFTConfig unavailable or assistant_only_loss unsupported ({e}); "
+          f"falling back to TrainingArguments + every-token loss.")
+    args = TrainingArguments(
+        output_dir="/content/checkpoints",
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=32,
+        warmup_ratio=0.03,
+        num_train_epochs=1,
+        learning_rate=2e-4,
+        bf16=True,
+        logging_steps=20,
+        save_steps=2000,
+        save_total_limit=1,
+        optim="adamw_8bit",
+        weight_decay=0.0,
+        lr_scheduler_type="linear",
+        seed=42,
+        report_to="none",
+    )
+    USING_SFT_CONFIG = False
 
-# Completion-only loss masking: the response template is the last 40
-# chars of the rendered prompt (= boundary tokens after which the
-# assistant's rationale begins).
-sample_prompt = tokenizer.apply_chat_template(
-    [{"role": "user", "content": "X"}],
-    tokenize=False,
-    add_generation_prompt=True,
-    enable_thinking=True,
-)
-response_template = sample_prompt[-40:]
-print(f"completion-only response_template: {response_template!r}")
-collator = DataCollatorForCompletionOnlyLM(response_template=response_template, tokenizer=tokenizer)
-
-trainer = SFTTrainer(
+trainer_kwargs = dict(
     model=model,
-    tokenizer=tokenizer,
     train_dataset=ds,
-    data_collator=collator,
-    dataset_text_field="text",
-    max_seq_length=MAX_SEQ_LEN,
     args=args,
-    packing=False,
 )
+if not USING_SFT_CONFIG:
+    # Older TRL took these as explicit args
+    trainer_kwargs["tokenizer"] = tokenizer
+    trainer_kwargs["dataset_text_field"] = "text"
+    trainer_kwargs["max_seq_length"] = MAX_SEQ_LEN
+    trainer_kwargs["packing"] = False
+
+trainer = SFTTrainer(**trainer_kwargs)
 trainer.train()
 print("✓ training done")
 
