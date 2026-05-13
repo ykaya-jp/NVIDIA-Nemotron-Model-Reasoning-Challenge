@@ -205,7 +205,14 @@ model = AutoModelForCausalLM.from_pretrained(
     MODEL_NAME,
     trust_remote_code=True,
     dtype=torch.bfloat16,
-    device_map="auto",
+    # device_map={"": 0} forces every parameter (including MoE
+    # experts) onto GPU 0. The default `device_map="auto"` offloads
+    # rarely-used experts to CPU/disk, leaving meta tensors that the
+    # HF Trainer's `_move_model_to_device(model.to(cuda))` cannot
+    # materialise → NotImplementedError("Cannot copy out of meta
+    # tensor"). 30 B BF16 ≈ 60 GB fits on the A100-80 with room to
+    # spare for LoRA + activations.
+    device_map={"": 0},
     attn_implementation="eager",
 )
 # NOTE: do NOT call model.gradient_checkpointing_enable() here.
