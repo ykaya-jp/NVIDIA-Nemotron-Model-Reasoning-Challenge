@@ -152,6 +152,37 @@ print(
 # we hit when wrapping the model first and then letting TRL re-prepare
 # it. attn_implementation="eager" is required: the hybrid Mamba layers
 # refuse SDPA / FA-2 paths.
+#
+# transformers 4.56.2 workaround: AutoTokenizer.from_pretrained calls
+# list_repo_templates() on `<repo>/additional_chat_templates/` and
+# re-raises any 404 instead of treating "no such directory" as "no
+# extra templates". Nemotron-3-Nano does not ship that directory, so
+# the load dies with `EntryNotFoundError: additional_chat_templates
+# does not exist on "main"`. Patch the symbol to return [] on 404.
+import transformers.tokenization_utils_base
+import transformers.utils.hub
+from huggingface_hub.utils import EntryNotFoundError
+
+_orig_list_repo_templates = transformers.utils.hub.list_repo_templates
+
+
+def _safe_list_repo_templates(*args, **kwargs):
+    try:
+        return _orig_list_repo_templates(*args, **kwargs)
+    except EntryNotFoundError:
+        return []
+    except Exception as _e:
+        _msg = str(_e)
+        if "404" in _msg or "Entry Not Found" in _msg or "does not exist" in _msg:
+            return []
+        raise
+
+
+transformers.utils.hub.list_repo_templates = _safe_list_repo_templates
+if hasattr(transformers.tokenization_utils_base, "list_repo_templates"):
+    transformers.tokenization_utils_base.list_repo_templates = _safe_list_repo_templates
+print("✓ patched list_repo_templates to tolerate missing additional_chat_templates/")
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
