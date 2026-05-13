@@ -47,14 +47,19 @@ ADAPTER_DIR = "/content/drive/MyDrive/nemotron-2026/adapter_v1"
 os.makedirs(ADAPTER_DIR, exist_ok=True)
 
 # ====================================================================
-# Cell 2 — Dependencies (Unsloth official install pattern for Colab)
+# Cell 2 — Dependencies (plain transformers + peft + TRL stack)
 # ====================================================================
-# Use the Unsloth-recommended Colab install pattern. The single
-# `pip install unsloth==xxx` form caused dependency conflicts (= torch,
-# transformers) on Python 3.12. The split below installs Unsloth first
-# (it pulls compatible torch/triton), then forces the latest nightly
-# from GitHub with --no-deps so we don't downgrade Colab's CUDA torch.
-# Reference: https://docs.unsloth.ai/get-started/installing-+-updating
+# Why no Unsloth: Unsloth issue #3480 (= "Cannot load Nvidia Nemotron
+# Nano models") + a meta-tensor crash inside unsloth_zoo
+# fix_untrained_tokens make the Unsloth fast-path unusable on this
+# specific model. The NVIDIA / DataCamp reference notebook uses plain
+# transformers + peft + TRL with the version pins below; this is the
+# documented working stack for Nemotron-3-Nano-30B-A3B-BF16 on an
+# A100 80 GB.
+# References:
+# - https://www.datacamp.com/tutorial/fine-tuning-nvidia-nemotron-3-nano
+# - https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16
+# - https://github.com/unslothai/unsloth/issues/3480
 import subprocess
 import sys
 
@@ -65,32 +70,34 @@ def _run(cmd):
     subprocess.run(cmd, check=True)
 
 
-# Step 1: install Unsloth + the heavy deps it knows about.
-_run([sys.executable, "-m", "pip", "install", "-q", "unsloth"])
+# Step 1: build tooling for the Mamba CUDA extensions.
+_run([sys.executable, "-m", "pip", "install", "-q", "-U", "packaging", "ninja"])
 
-# Step 2: force the nightly version + companion libs without resolving
-# torch (Colab already ships a compatible CUDA torch wheel).
+# Step 2: pin torch to the CUDA 12.8 build required by Nemotron-3-Nano.
+# Colab default torch is usually fine, but the cu128 wheel is the one
+# NVIDIA / Unsloth document for the Mamba kernels, so we force it.
+_run([sys.executable, "-m", "pip", "uninstall", "-y",
+      "torch", "torchvision", "torchaudio", "triton"])
 _run([sys.executable, "-m", "pip", "install", "-q",
-      "--upgrade", "--no-deps", "--force-reinstall",
-      "unsloth_zoo"])
+      "torch==2.7.1", "torchvision==0.22.1", "torchaudio==2.7.1",
+      "--index-url", "https://download.pytorch.org/whl/cu128"])
 
-# Step 3: trl + extras we depend on. transformers and peft come along
-# with unsloth's pin so don't re-pin them here.
-_run([sys.executable, "-m", "pip", "install", "-q",
-      "trl", "datasets", "accelerate", "bitsandbytes",
+# Step 3: HF stack with the exact pins from the NVIDIA / DataCamp
+# reference. transformers 4.56.2 + trl 0.22.2 supports
+# `completion_only_loss=True` and `processing_class=tokenizer`.
+_run([sys.executable, "-m", "pip", "install", "-q", "-U",
+      "transformers==4.56.2", "tokenizers", "trl==0.22.2",
+      "accelerate", "datasets", "peft",
+      "huggingface_hub", "safetensors",
       "sentencepiece", "nbformat"])
 
-# Step 4: Mamba-SSM + causal-conv1d. Nemotron-3-Nano-30B is a hybrid
-# Mamba-Transformer architecture and the HF modeling code refuses to
-# import without these two C++ extensions. `--no-build-isolation` is
-# critical: it tells pip to use the torch already installed in this
-# environment when compiling the CUDA kernels (otherwise pip spawns
-# an isolated build env, doesn't see torch, and fails).
-# First build can take 5-10 min on Colab A100; subsequent runs hit
-# the cache instantly.
+# Step 4: Mamba-SSM + causal-conv1d at the versions that ship in the
+# NVIDIA reference. `--no-build-isolation` reuses the torch we just
+# installed (otherwise pip spawns a clean env without torch and the
+# CUDA build fails). First build ~5-10 min on A100; cached after.
 _run([sys.executable, "-m", "pip", "install", "-q",
-      "--no-build-isolation",
-      "mamba-ssm", "causal-conv1d"])
+      "-U", "--no-build-isolation",
+      "mamba_ssm==2.2.5", "causal_conv1d==1.5.2"])
 
 import torch
 
@@ -104,36 +111,43 @@ print(
 )
 
 # ====================================================================
-# Cell 3 — Load base model from HuggingFace + LoRA setup
+# Cell 3 — Load base model + tokenizer (plain transformers path)
 # ====================================================================
-from unsloth import FastLanguageModel
+# We DO NOT wrap with peft here. SFTTrainer accepts `peft_config=...`
+# and applies LoRA internally — this avoids the meta-tensor edge case
+# we hit when wrapping the model first and then letting TRL re-prepare
+# it. attn_implementation="eager" is required: the hybrid Mamba layers
+# refuse SDPA / FA-2 paths.
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-MAX_SEQ_LEN = 4096  # = Kaggle inference max_model_len (rel. official metric)
+MAX_SEQ_LEN = 2048   # = 95th-percentile of our SFT records; 4096 risks
+                     #   OOM at 30B + bs1 + LoRA on A100-80 GB. Inference
+                     #   side still uses 4096 (we just train on shorter
+                     #   contexts).
 MODEL_NAME = "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"
 
-model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name=MODEL_NAME,
-    max_seq_length=MAX_SEQ_LEN,
-    dtype=torch.bfloat16,
-    load_in_4bit=False,
-    load_in_8bit=False,
-    full_finetuning=False,
+tokenizer = AutoTokenizer.from_pretrained(
+    MODEL_NAME,
     trust_remote_code=True,
+    use_fast=True,
+)
+if tokenizer.pad_token is None:
+    tokenizer.pad_token = tokenizer.eos_token
+tokenizer.padding_side = "right"
+
+model = AutoModelForCausalLM.from_pretrained(
+    MODEL_NAME,
+    trust_remote_code=True,
+    dtype=torch.bfloat16,
+    device_map="auto",
     attn_implementation="eager",
 )
-
-model = FastLanguageModel.get_peft_model(
-    model,
-    r=32,
-    target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
-    lora_alpha=64,
-    lora_dropout=0.05,
-    bias="none",
-    use_gradient_checkpointing="unsloth",
-    random_state=42,
-    max_seq_length=MAX_SEQ_LEN,
-)
-print("✓ LoRA model ready (rank 32, max_seq_len", MAX_SEQ_LEN, ")")
+model.gradient_checkpointing_enable()
+model.config.use_cache = False
+model.config.pad_token_id = tokenizer.pad_token_id
+model.config.eos_token_id = tokenizer.eos_token_id
+print("✓ base model loaded (BF16, eager attn, gradient checkpointing on)")
 
 # ====================================================================
 # Cell 4 — Load SFT data + chat template + upsample + completion-only
@@ -181,84 +195,74 @@ if extras:
 print(f"after upsampling: {len(ds)} records")
 
 # ====================================================================
-# Cell 5 — SFT training (1 epoch, completion-only loss)
+# Cell 5 — SFT training (1 epoch, completion-only loss, LoRA via TRL)
 # ====================================================================
-from transformers import TrainingArguments
-from trl import SFTTrainer
+# We let SFTTrainer apply the LoRA adapter internally (peft_config=...)
+# rather than wrapping with get_peft_model() ourselves. This is the
+# code path the NVIDIA / DataCamp reference uses and it sidesteps the
+# meta-tensor crash that Unsloth's fix_untrained_tokens triggers.
+# target_modules="all-linear" matches NVIDIA's recommendation;
+# completion_only_loss=True masks the prompt and only learns on the
+# assistant turn (= the verifier-backed CoT). adamw_torch_fused is
+# faster than adamw_8bit on A100 and avoids the bitsandbytes
+# dependency.
+from peft import LoraConfig
+from trl import SFTConfig, SFTTrainer
 
-# TRL >= 0.15 removed `DataCollatorForCompletionOnlyLM` (moved /
-# deprecated). Newer TRL exposes `assistant_only_loss` directly on
-# SFTConfig — we try that first and fall back to plain loss on every
-# token if the flag isn't recognised. Either way the run succeeds;
-# completion-only masking is a small +signal-to-noise win, not a
-# correctness requirement.
-try:
-    from trl import SFTConfig
-    args = SFTConfig(
-        output_dir="/content/checkpoints",
-        per_device_train_batch_size=1,
-        gradient_accumulation_steps=32,
-        warmup_ratio=0.03,
-        num_train_epochs=1,
-        learning_rate=2e-4,
-        bf16=True,
-        logging_steps=20,
-        save_steps=2000,
-        save_total_limit=1,
-        optim="adamw_8bit",
-        weight_decay=0.0,
-        lr_scheduler_type="linear",
-        seed=42,
-        report_to="none",
-        dataset_text_field="text",
-        max_seq_length=MAX_SEQ_LEN,
-        assistant_only_loss=True,  # = ignored on older TRL
-        packing=False,
-    )
-    USING_SFT_CONFIG = True
-    print("Using SFTConfig with assistant_only_loss=True")
-except (ImportError, TypeError) as e:
-    print(f"SFTConfig unavailable or assistant_only_loss unsupported ({e}); "
-          f"falling back to TrainingArguments + every-token loss.")
-    args = TrainingArguments(
-        output_dir="/content/checkpoints",
-        per_device_train_batch_size=1,
-        gradient_accumulation_steps=32,
-        warmup_ratio=0.03,
-        num_train_epochs=1,
-        learning_rate=2e-4,
-        bf16=True,
-        logging_steps=20,
-        save_steps=2000,
-        save_total_limit=1,
-        optim="adamw_8bit",
-        weight_decay=0.0,
-        lr_scheduler_type="linear",
-        seed=42,
-        report_to="none",
-    )
-    USING_SFT_CONFIG = False
-
-trainer_kwargs = dict(
-    model=model,
-    train_dataset=ds,
-    args=args,
+lora_config = LoraConfig(
+    r=32,
+    lora_alpha=64,
+    lora_dropout=0.05,
+    bias="none",
+    task_type="CAUSAL_LM",
+    target_modules="all-linear",
 )
-if not USING_SFT_CONFIG:
-    # Older TRL took these as explicit args
-    trainer_kwargs["tokenizer"] = tokenizer
-    trainer_kwargs["dataset_text_field"] = "text"
-    trainer_kwargs["max_seq_length"] = MAX_SEQ_LEN
-    trainer_kwargs["packing"] = False
 
-trainer = SFTTrainer(**trainer_kwargs)
+args = SFTConfig(
+    output_dir="/content/checkpoints",
+    per_device_train_batch_size=1,
+    gradient_accumulation_steps=32,         # effective batch = 32
+    num_train_epochs=1,
+    learning_rate=2e-4,
+    warmup_ratio=0.03,
+    weight_decay=0.0,
+    lr_scheduler_type="linear",
+    bf16=True,
+    fp16=False,
+    tf32=True,
+    gradient_checkpointing=True,
+    logging_steps=20,
+    save_strategy="steps",
+    save_steps=2000,
+    save_total_limit=1,
+    optim="adamw_torch_fused",
+    seed=42,
+    report_to="none",
+    dataset_text_field="text",
+    max_length=MAX_SEQ_LEN,                 # TRL >=0.22 renamed max_seq_length -> max_length
+    packing=False,
+    completion_only_loss=True,
+    remove_unused_columns=False,
+    dataloader_num_workers=2,
+)
+
+trainer = SFTTrainer(
+    model=model,
+    args=args,
+    train_dataset=ds,
+    peft_config=lora_config,
+    processing_class=tokenizer,             # replaces the deprecated `tokenizer=` arg
+)
 trainer.train()
 print("✓ training done")
 
 # ====================================================================
 # Cell 6 — Save adapter to Drive
 # ====================================================================
-model.save_pretrained(ADAPTER_DIR)
+# After training the model object is a PeftModel wrapping the base.
+# save_pretrained writes ONLY the LoRA adapter (~200-400 MB), which is
+# what the Kaggle metric notebook expects.
+trainer.model.save_pretrained(ADAPTER_DIR)
 tokenizer.save_pretrained(ADAPTER_DIR)
 print("saved adapter to", ADAPTER_DIR)
 for fn in sorted(os.listdir(ADAPTER_DIR)):

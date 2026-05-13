@@ -10,7 +10,7 @@
 クリックで `notebooks/train_lora_colab.ipynb` が Colab で開きます。
 
 1. **Runtime → Change runtime type → A100 GPU + High-RAM** を選んで Save
-2. **Runtime → Run all** で 6-10 h training (自動 Drive mount + GitHub clone + Unsloth + LoRA SFT)
+2. **Runtime → Run all** で 6-10 h training (自動 Drive mount + GitHub clone + transformers/peft/TRL LoRA SFT、 Unsloth は Nemotron-Nano load bug = unslothai/unsloth#3480 のため使用しない)
 3. 完了後 adapter が `/content/drive/MyDrive/nemotron-2026/adapter_v1/` に保存される
 4. その adapter フォルダを Kaggle Dataset として upload (= `ky7240/nemotron-v1-adapter`)
 5. [submission kernel](https://www.kaggle.com/code/ky7240/nemotron-v1-inference) を開いて Add data で adapter dataset を attach → Save Version → Submit to Competition
