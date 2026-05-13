@@ -85,11 +85,24 @@ _run([sys.executable, "-m", "pip", "install", "-q",
 # Step 3: HF stack with the exact pins from the NVIDIA / DataCamp
 # reference. transformers 4.56.2 + trl 0.22.2 supports
 # `completion_only_loss=True` and `processing_class=tokenizer`.
+# peft is pinned to <0.16 on purpose: peft 0.16+ requires
+# torchao>=0.16, which in turn needs torch>=2.8 (incompatible with
+# the torch 2.7.1 + CUDA 12.8 build we pinned for the Mamba kernels).
+# We don't use any torchao features (no quantization), so this is the
+# cleanest resolution.
 _run([sys.executable, "-m", "pip", "install", "-q", "-U",
       "transformers==4.56.2", "tokenizers", "trl==0.22.2",
-      "accelerate", "datasets", "peft",
+      "accelerate", "datasets", "peft<0.16",
       "huggingface_hub", "safetensors",
       "sentencepiece", "nbformat"])
+
+# Step 3b: defence-in-depth — even with peft<0.16 pinned, a stale
+# torchao 0.10 may live in the Colab base image and trip
+# `peft.import_utils.is_torchao_available()` (it import-checks the
+# minimum version *if* torchao is present). Uninstalling torchao
+# makes that helper return False without raising. We never use
+# torchao quantization, so removing it is safe.
+_run([sys.executable, "-m", "pip", "uninstall", "-y", "torchao"])
 
 # Step 4: Mamba-SSM + causal-conv1d at the versions that ship in the
 # NVIDIA reference. `--no-build-isolation` reuses the torch we just
