@@ -26,8 +26,13 @@ docs/strategy/winning-strategy.dense.md for the full rationale.
 """
 
 # ====================================================================
-# Cell 1 — Drive mount + GitHub clone
+# Cell 1 — Drive mount + git clone-or-pull (hot-reload safe)
 # ====================================================================
+# Designed so re-running this cell alone refreshes the repo to the
+# latest origin/main without touching cells 2 (pip install) or 3
+# (model load). Cells 4 and 5 are thin wrappers around
+# `colab_pipeline.py` in the repo, so any fix lands in the running
+# kernel by simply re-running cells 1 -> 4 -> 5.
 from google.colab import drive
 
 drive.mount("/content/drive")
@@ -38,13 +43,29 @@ import subprocess
 REPO_URL = "https://github.com/ykaya-jp/NVIDIA-Nemotron-Model-Reasoning-Challenge.git"
 REPO_DIR = "/content/nemotron"
 if not os.path.isdir(REPO_DIR):
-    subprocess.run(["git", "clone", "--depth", "1", REPO_URL, REPO_DIR], check=True)
+    subprocess.run(["git", "clone", REPO_URL, REPO_DIR], check=True)
+else:
+    # Already cloned — fast-forward to the latest commit on origin/main.
+    # `reset --hard` is safe because we never edit files inside the
+    # Colab clone (the user edits happen on the host machine and reach
+    # us through git).
+    subprocess.run(["git", "-C", REPO_DIR, "fetch", "--depth", "1",
+                    "origin", "main"], check=True)
+    subprocess.run(["git", "-C", REPO_DIR, "reset", "--hard",
+                    "origin/main"], check=True)
 os.chdir(REPO_DIR)
 print("repo at", REPO_DIR)
 subprocess.run(["git", "log", "-1", "--oneline"])
 
 ADAPTER_DIR = "/content/drive/MyDrive/nemotron-2026/adapter_v1"
 os.makedirs(ADAPTER_DIR, exist_ok=True)
+
+# Make the repo's Python package importable. Adding sys.path here
+# (rather than in cell 4) means an `importlib.reload(...)` in cell 4
+# always sees the file freshly written by the git pull above.
+import sys
+if os.path.join(REPO_DIR, "src") not in sys.path:
+    sys.path.insert(0, os.path.join(REPO_DIR, "src"))
 
 # ====================================================================
 # Cell 2 — Dependencies (plain transformers + peft + TRL stack)
@@ -169,144 +190,35 @@ model.config.eos_token_id = tokenizer.eos_token_id
 print("✓ base model loaded (BF16, eager attn; grad-ckpt left to SFTTrainer)")
 
 # ====================================================================
-# Cell 4 — Load SFT data + chat template + upsample + completion-only
+# Cell 4 — Load SFT data + chat template + upsample + length audit
 # ====================================================================
-import json
-from collections import Counter
-
-from datasets import Dataset, concatenate_datasets
+# The body lives in colab_pipeline.build_dataset() inside the repo so
+# that any future fix only requires re-running cells 1 + 4 + 5 — no
+# pip-install / model-load redo. We use importlib.reload to pick up
+# the latest version on every re-run.
+import importlib
+import nvidia_nemotron_model_reasoning_challenge.colab_pipeline as _pipeline
+importlib.reload(_pipeline)
 
 SFT_PATH = os.path.join(REPO_DIR, "data/processed/train_sft_verifier_only.jsonl")
-assert os.path.exists(SFT_PATH), f"SFT data missing at {SFT_PATH}"
-rows = [json.loads(l) for l in open(SFT_PATH)]
-print(f"loaded {len(rows)} verifier-backed records")
-print("source distribution:", Counter(r["source"] for r in rows))
-
-INFERENCE_USER_SUFFIX = (
-    "\nPlease put your final answer inside `\\boxed{}`. For example: `\\boxed{your answer}`"
-)
-
-
-def render(rec):
-    """Emit the row in CONVERSATIONAL PROMPT-COMPLETION format.
-
-    Why this format specifically: TRL 0.22's `completion_only_loss=True`
-    is only honoured when the dataset is a prompt-completion dataset
-    (per https://huggingface.co/docs/trl/sft_trainer). If we pass a
-    single rendered "text" field, TRL falls back to language-modeling
-    mode and silently computes loss on the prompt as well — a silent
-    failure that would only show up as a flat LB.
-
-    We let TRL apply the tokenizer's chat template internally;
-    Nemotron-3-Nano enables `<think>` reasoning by default in its chat
-    template, so we do not need to pass enable_thinking=True ourselves.
-    """
-    user_content = rec["user"] + INFERENCE_USER_SUFFIX
-    return {
-        "prompt": [{"role": "user", "content": user_content}],
-        "completion": [{"role": "assistant", "content": rec["assistant"]}],
-    }
-
-
-ds = Dataset.from_list([render(r) for r in rows])
-
-# Codex review 3 §3 — upsample under-represented bit (× 13) and cipher
-# (× 2) so they survive epoch-1 gradient mass.
-upsample = {"solver_bit": 13, "solver_cipher": 2}
-extras = []
-for r in rows:
-    n = upsample.get(r["source"], 1)
-    if n > 1:
-        extras.extend([r] * (n - 1))
-if extras:
-    extras_ds = Dataset.from_list([render(r) for r in extras])
-    ds = concatenate_datasets([ds, extras_ds]).shuffle(seed=42)
-print(f"after upsampling: {len(ds)} records")
-
-# Audit (R3): how many records will get truncated at MAX_SEQ_LEN tokens?
-# A truncation that drops the trailing `\boxed{...}` is a silent
-# label loss, so we want to see the number up front rather than
-# discovering it after 8 h of training.
-def _approx_len(ex):
-    txt = (
-        tokenizer.apply_chat_template(ex["prompt"], tokenize=False, add_generation_prompt=True)
-        + ex["completion"][0]["content"]
-    )
-    return len(tokenizer(txt, add_special_tokens=False)["input_ids"])
-
-sample_idx = list(range(0, len(ds), max(1, len(ds) // 200)))[:200]
-lens = [_approx_len(ds[i]) for i in sample_idx]
-n_trunc = sum(1 for L in lens if L > MAX_SEQ_LEN)
-print(f"length audit on {len(lens)}-sample: max={max(lens)} p95={sorted(lens)[int(len(lens)*0.95)]} "
-      f"truncated@{MAX_SEQ_LEN}={n_trunc} ({n_trunc / len(lens):.1%})")
-if n_trunc / len(lens) > 0.10:
-    print(f"⚠️  >10% of sampled records exceed MAX_SEQ_LEN={MAX_SEQ_LEN}; "
-          f"consider raising it (memory permitting) or shortening the CoT.")
+rows = _pipeline.load_rows(SFT_PATH)
+ds = _pipeline.build_dataset(rows, tokenizer, MAX_SEQ_LEN)
 
 # ====================================================================
 # Cell 5 — SFT training (1 epoch, completion-only loss, LoRA via TRL)
 # ====================================================================
-# We let SFTTrainer apply the LoRA adapter internally (peft_config=...)
-# rather than wrapping with get_peft_model() ourselves. This is the
-# code path the NVIDIA / DataCamp reference uses and it sidesteps the
-# meta-tensor crash that Unsloth's fix_untrained_tokens triggers.
-# target_modules="all-linear" matches NVIDIA's recommendation;
-# completion_only_loss=True masks the prompt and only learns on the
-# assistant turn (= the verifier-backed CoT). adamw_torch_fused is
-# faster than adamw_8bit on A100 and avoids the bitsandbytes
-# dependency.
-from peft import LoraConfig
-from trl import SFTConfig, SFTTrainer
+# Body lives in colab_pipeline.train_lora(). Re-importing/reloading
+# here picks up any fix that came in via cell 1's git pull, without
+# touching the loaded model or the installed packages.
+import importlib
+import nvidia_nemotron_model_reasoning_challenge.colab_pipeline as _pipeline
+importlib.reload(_pipeline)
 
-lora_config = LoraConfig(
-    r=32,
-    lora_alpha=64,
-    lora_dropout=0.05,
-    bias="none",
-    task_type="CAUSAL_LM",
-    target_modules="all-linear",
-)
-
-args = SFTConfig(
+trainer = _pipeline.train_lora(
+    model, tokenizer, ds,
     output_dir="/content/checkpoints",
-    per_device_train_batch_size=1,
-    gradient_accumulation_steps=32,         # effective batch = 32
-    num_train_epochs=1,
-    learning_rate=2e-4,
-    warmup_ratio=0.03,
-    weight_decay=0.0,
-    lr_scheduler_type="linear",
-    bf16=True,
-    fp16=False,
-    tf32=True,
-    gradient_checkpointing=True,
-    logging_steps=20,
-    save_strategy="steps",
-    save_steps=2000,
-    save_total_limit=1,
-    optim="adamw_torch_fused",
-    seed=42,
-    report_to="none",
-    # NOTE: no dataset_text_field — the dataset is in prompt-completion
-    # format (cell 4), so TRL applies the chat template internally and
-    # honours completion_only_loss. Passing dataset_text_field here
-    # would force language-modeling mode and silently disable masking.
-    max_length=MAX_SEQ_LEN,                 # TRL >=0.22 renamed max_seq_length -> max_length
-    packing=False,
-    completion_only_loss=True,              # masks the prompt; only the assistant CoT contributes to loss
-    remove_unused_columns=False,
-    dataloader_num_workers=2,
+    max_seq_len=MAX_SEQ_LEN,
 )
-
-trainer = SFTTrainer(
-    model=model,
-    args=args,
-    train_dataset=ds,
-    peft_config=lora_config,
-    processing_class=tokenizer,             # replaces the deprecated `tokenizer=` arg
-)
-trainer.train()
-print("✓ training done")
 
 # ====================================================================
 # Cell 6 — Save adapter to Drive
