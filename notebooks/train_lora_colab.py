@@ -156,11 +156,17 @@ model = AutoModelForCausalLM.from_pretrained(
     device_map="auto",
     attn_implementation="eager",
 )
-model.gradient_checkpointing_enable()
+# NOTE: do NOT call model.gradient_checkpointing_enable() here.
+# SFTConfig has `gradient_checkpointing=True` by default and the
+# SFTTrainer + peft_config path re-prepares the model (including
+# input_require_grads wiring) when applying LoRA. Pre-enabling
+# gradient checkpointing on the bare model before that happens
+# desynchronises the two and can throw "RuntimeError: element 0 of
+# tensors does not require grad" mid-training. Leave it to TRL.
 model.config.use_cache = False
 model.config.pad_token_id = tokenizer.pad_token_id
 model.config.eos_token_id = tokenizer.eos_token_id
-print("✓ base model loaded (BF16, eager attn, gradient checkpointing on)")
+print("✓ base model loaded (BF16, eager attn; grad-ckpt left to SFTTrainer)")
 
 # ====================================================================
 # Cell 4 — Load SFT data + chat template + upsample + completion-only
@@ -182,14 +188,24 @@ INFERENCE_USER_SUFFIX = (
 
 
 def render(rec):
+    """Emit the row in CONVERSATIONAL PROMPT-COMPLETION format.
+
+    Why this format specifically: TRL 0.22's `completion_only_loss=True`
+    is only honoured when the dataset is a prompt-completion dataset
+    (per https://huggingface.co/docs/trl/sft_trainer). If we pass a
+    single rendered "text" field, TRL falls back to language-modeling
+    mode and silently computes loss on the prompt as well — a silent
+    failure that would only show up as a flat LB.
+
+    We let TRL apply the tokenizer's chat template internally;
+    Nemotron-3-Nano enables `<think>` reasoning by default in its chat
+    template, so we do not need to pass enable_thinking=True ourselves.
+    """
     user_content = rec["user"] + INFERENCE_USER_SUFFIX
-    prompt_text = tokenizer.apply_chat_template(
-        [{"role": "user", "content": user_content}],
-        tokenize=False,
-        add_generation_prompt=True,
-        enable_thinking=True,
-    )
-    return {"text": prompt_text + rec["assistant"]}
+    return {
+        "prompt": [{"role": "user", "content": user_content}],
+        "completion": [{"role": "assistant", "content": rec["assistant"]}],
+    }
 
 
 ds = Dataset.from_list([render(r) for r in rows])
@@ -206,6 +222,26 @@ if extras:
     extras_ds = Dataset.from_list([render(r) for r in extras])
     ds = concatenate_datasets([ds, extras_ds]).shuffle(seed=42)
 print(f"after upsampling: {len(ds)} records")
+
+# Audit (R3): how many records will get truncated at MAX_SEQ_LEN tokens?
+# A truncation that drops the trailing `\boxed{...}` is a silent
+# label loss, so we want to see the number up front rather than
+# discovering it after 8 h of training.
+def _approx_len(ex):
+    txt = (
+        tokenizer.apply_chat_template(ex["prompt"], tokenize=False, add_generation_prompt=True)
+        + ex["completion"][0]["content"]
+    )
+    return len(tokenizer(txt, add_special_tokens=False)["input_ids"])
+
+sample_idx = list(range(0, len(ds), max(1, len(ds) // 200)))[:200]
+lens = [_approx_len(ds[i]) for i in sample_idx]
+n_trunc = sum(1 for L in lens if L > MAX_SEQ_LEN)
+print(f"length audit on {len(lens)}-sample: max={max(lens)} p95={sorted(lens)[int(len(lens)*0.95)]} "
+      f"truncated@{MAX_SEQ_LEN}={n_trunc} ({n_trunc / len(lens):.1%})")
+if n_trunc / len(lens) > 0.10:
+    print(f"⚠️  >10% of sampled records exceed MAX_SEQ_LEN={MAX_SEQ_LEN}; "
+          f"consider raising it (memory permitting) or shortening the CoT.")
 
 # ====================================================================
 # Cell 5 — SFT training (1 epoch, completion-only loss, LoRA via TRL)
@@ -251,10 +287,13 @@ args = SFTConfig(
     optim="adamw_torch_fused",
     seed=42,
     report_to="none",
-    dataset_text_field="text",
+    # NOTE: no dataset_text_field — the dataset is in prompt-completion
+    # format (cell 4), so TRL applies the chat template internally and
+    # honours completion_only_loss. Passing dataset_text_field here
+    # would force language-modeling mode and silently disable masking.
     max_length=MAX_SEQ_LEN,                 # TRL >=0.22 renamed max_seq_length -> max_length
     packing=False,
-    completion_only_loss=True,
+    completion_only_loss=True,              # masks the prompt; only the assistant CoT contributes to loss
     remove_unused_columns=False,
     dataloader_num_workers=2,
 )
