@@ -101,6 +101,25 @@ def build_dataset(rows: list[dict], tokenizer, max_seq_len: int) -> Dataset:
 
 def train_lora(model, tokenizer, ds: Dataset, *, output_dir: str, max_seq_len: int):
     """Run SFT + LoRA via TRL's prompt-completion + completion-only-loss path."""
+    # peft<0.16 still ships a LoRA torchao dispatcher that calls
+    # `is_torchao_available()` and raises ImportError if the
+    # installed torchao is older than 0.16. Colab pre-installs
+    # torchao 0.10, and even cell 2's `pip uninstall torchao` can be
+    # undone by a subsequent install that pulls it back in. We don't
+    # use torchao quantization at all, so short-circuit the check so
+    # the dispatcher returns "no torchao backend, try the next one".
+    import peft.import_utils as _peft_import_utils
+
+    _peft_import_utils.is_torchao_available = lambda: False
+    # Defensive: peft.tuners.lora.torchao may have already imported
+    # `is_torchao_available` by name at module-load time.
+    try:
+        import peft.tuners.lora.torchao as _peft_torchao
+
+        _peft_torchao.is_torchao_available = lambda: False
+    except Exception:
+        pass
+
     from peft import LoraConfig
     from trl import SFTConfig, SFTTrainer
 
