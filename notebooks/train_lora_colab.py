@@ -254,7 +254,10 @@ importlib.reload(_pipeline)
 
 trainer = _pipeline.train_lora(
     model, tokenizer, ds,
-    output_dir="/content/checkpoints",
+    # Drive-mounted so checkpoints survive a Colab session drop
+    # (the 2026-05-14 first run lost 16 h of training because we
+    # were writing to /content/, which evaporates on disconnect).
+    output_dir="/content/drive/MyDrive/nemotron-2026/checkpoints_v1",
     max_seq_len=MAX_SEQ_LEN,
 )
 

@@ -100,7 +100,25 @@ def build_dataset(rows: list[dict], tokenizer, max_seq_len: int) -> Dataset:
 
 
 def train_lora(model, tokenizer, ds: Dataset, *, output_dir: str, max_seq_len: int):
-    """Run SFT + LoRA via TRL's prompt-completion + completion-only-loss path."""
+    """Run SFT + LoRA via TRL's prompt-completion + completion-only-loss path.
+
+    Notes
+    -----
+    - `output_dir` should point at a Drive-mounted path (e.g.
+      /content/drive/MyDrive/nemotron-2026/checkpoints) so checkpoints
+      survive a Colab session drop. The 2026-05-14 night run got to
+      step 171/206 (83%) before the session died with no checkpoint
+      written because save_steps=2000 > total steps (206). Lesson:
+      checkpoint frequently AND on persistent storage.
+    - `learning_rate=1e-4` (down from 2e-4) — the night-run loss
+      plateaued around step 160 at 0.85, which the discussion thread
+      audit (docs/research/2026-05-14-discussion-audit.md §2) ties to
+      our 13× bit upsample drifting toward catastrophic forgetting.
+      Halving lr is a conservative mitigation that doesn't redo data.
+    - `resume_from_checkpoint=True` — if a checkpoint exists at
+      output_dir from a previous run, TRL auto-resumes from it
+      (optimizer + scheduler + step count restored).
+    """
     # peft<0.16 still ships a LoRA torchao dispatcher that calls
     # `is_torchao_available()` and raises ImportError if the
     # installed torchao is older than 0.16. Colab pre-installs
@@ -137,7 +155,7 @@ def train_lora(model, tokenizer, ds: Dataset, *, output_dir: str, max_seq_len: i
         per_device_train_batch_size=1,
         gradient_accumulation_steps=32,
         num_train_epochs=1,
-        learning_rate=2e-4,
+        learning_rate=1e-4,  # ← lowered from 2e-4 (catastrophic-forgetting mitigation)
         warmup_ratio=0.03,
         weight_decay=0.0,
         lr_scheduler_type="linear",
@@ -147,8 +165,8 @@ def train_lora(model, tokenizer, ds: Dataset, *, output_dir: str, max_seq_len: i
         gradient_checkpointing=True,
         logging_steps=20,
         save_strategy="steps",
-        save_steps=2000,
-        save_total_limit=1,
+        save_steps=50,  # ← was 2000; 50 = checkpoint roughly every 1-1.5 h on A100
+        save_total_limit=3,  # keep last 3 checkpoints to bound Drive usage
         optim="adamw_torch_fused",
         seed=42,
         report_to="none",
@@ -166,6 +184,27 @@ def train_lora(model, tokenizer, ds: Dataset, *, output_dir: str, max_seq_len: i
         peft_config=lora_config,
         processing_class=tokenizer,
     )
-    trainer.train()
+
+    # Resume if a previous run left a checkpoint at output_dir, else
+    # start fresh. TRL detects checkpoint subdirs of the form
+    # `checkpoint-<step>/` automatically.
+    import os as _os
+
+    has_ckpt = _os.path.isdir(output_dir) and any(
+        d.startswith("checkpoint-") for d in _os.listdir(output_dir)
+    )
+    if has_ckpt:
+        print(f"↻ resuming from latest checkpoint under {output_dir}")
+        trainer.train(resume_from_checkpoint=True)
+    else:
+        trainer.train()
+
     print("✓ training done")
+    try:
+        import torch as _torch
+
+        peak_gb = _torch.cuda.max_memory_allocated() / 1024**3
+        print(f"   peak VRAM = {peak_gb:.1f} GB (Codex WARN 4 audit)")
+    except Exception:
+        pass
     return trainer
