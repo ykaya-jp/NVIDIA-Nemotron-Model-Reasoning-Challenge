@@ -35,7 +35,18 @@ docs/strategy/winning-strategy.dense.md for the full rationale.
 # kernel by simply re-running cells 1 -> 4 -> 5.
 from google.colab import drive
 
-drive.mount("/content/drive")
+# Robust mount: force_remount clears stale state from a previous
+# Colab session, timeout_ms gives the OAuth popup time to complete,
+# and a 1-shot retry handles transient drivefs issues that show up
+# as `ValueError: mount failed`.
+try:
+    drive.mount("/content/drive", force_remount=True, timeout_ms=180000)
+except Exception as _e:
+    print(f"first mount attempt failed: {_e}; retrying after 5 s...")
+    import time as _time
+
+    _time.sleep(5)
+    drive.mount("/content/drive", force_remount=True, timeout_ms=180000)
 
 import os
 import subprocess
