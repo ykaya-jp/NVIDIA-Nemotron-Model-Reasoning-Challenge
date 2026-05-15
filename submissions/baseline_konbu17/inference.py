@@ -1,16 +1,13 @@
-"""Submission kernel for our own v1 LoRA adapter.
+"""Baseline submission with konbu17/nemotron-sft-lora-cot-selection.
 
-Workflow:
-1. Train on Colab Pro+ A100 → adapter saved to Drive at
-   /content/drive/MyDrive/nemotron-2026/adapter_v1/
-2. Upload that folder to Kaggle as Dataset `ky7240/nemotron-v1-adapter`
-3. This kernel attaches that dataset, copies the two adapter files
-   into /kaggle/working/, and zips them as submission.zip — the format
-   the official metric notebook expects (= confirmed via
-   ryanholbrook_submission_demo).
-"""
+Correct submission format (= confirmed via ryanholbrook_submission_demo):
+  /kaggle/working/submission.zip containing adapter_config.json +
+  adapter_model.safetensors. The official metric notebook unzips this
+  and runs vLLM + LoRARequest with the adapter."""
 import os, shutil, subprocess
 
+# Find the adapter folder among attached datasets — exact mount path
+# differs depending on whether competition_sources is set.
 ADAPTER_SRC = None
 for root, dirs, files in os.walk("/kaggle/input"):
     if "adapter_config.json" in files and "adapter_model.safetensors" in files:
@@ -31,5 +28,5 @@ subprocess.run(
     f"cd {OUT} && zip -m submission.zip adapter_config.json adapter_model.safetensors",
     shell=True, check=True,
 )
-print("✓ submission.zip created")
+print("✓ submission.zip created at /kaggle/working/submission.zip")
 print(f"  size: {os.path.getsize(os.path.join(OUT, 'submission.zip')):,} bytes")

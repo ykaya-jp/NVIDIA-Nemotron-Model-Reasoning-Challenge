@@ -1,0 +1,16 @@
+{
+  "id": "ky7240/nemotron-baseline-huikang",
+  "title": "nemotron baseline huikang",
+  "code_file": "inference.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_internet": false,
+  "competition_sources": [
+    "nvidia-nemotron-model-reasoning-challenge"
+  ],
+  "dataset_sources": [
+    "andreyyunoshev/huikang-nemotron-adapter-mirror"
+  ]
+}
