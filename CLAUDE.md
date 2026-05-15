@@ -1,14 +1,14 @@
 # nvidia-nemotron-model-reasoning-challenge project-local instructions
 
 > Kaggle competition: https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge
-> Deadline: 2026-06-15 (= 残 33 日、 2026-05-13 起算)
+> Deadline: 2026-06-15 (= 残 30 日、 2026-05-16 起算)
 > Prize: $106,388 USD
 > Teams: 2,959
 
 ## CRITICAL: Session start protocol
 
 1. 本ファイル read
-2. **Latest HANDOFF: `docs/dev/HANDOFF-2026-05-14.md`** ★ ← 必ず first read
+2. **Latest HANDOFF: `docs/dev/HANDOFF-2026-05-16.md`** ★ ← 必ず first read
 3. git log + `kaggle competitions submissions nvidia-nemotron-model-reasoning-challenge` で最新確認
 4. handoff doc "Next session 即 action" を実行
 
