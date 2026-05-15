@@ -141,13 +141,28 @@ def train_lora(model, tokenizer, ds: Dataset, *, output_dir: str, max_seq_len: i
     from peft import LoraConfig
     from trl import SFTConfig, SFTTrainer
 
+    # Codex audit 4 §WARN (2026-05-16): "all-linear" expands via PEFT's
+    # module tree and may include MoE gating / Mamba-side projections
+    # that vLLM's LoRARequest does not load → silent zero-improvement
+    # adapter at inference. The two working 0.85-LB public kernels
+    # (dgxchen via Unsloth, konbu17 via plain PEFT) both use an explicit
+    # 8-module list. Match that exact set.
     lora_config = LoraConfig(
         r=32,
         lora_alpha=64,
         lora_dropout=0.05,
         bias="none",
         task_type="CAUSAL_LM",
-        target_modules="all-linear",
+        target_modules=[
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "in_proj",
+            "out_proj",
+            "up_proj",
+            "down_proj",
+        ],
     )
 
     args = SFTConfig(

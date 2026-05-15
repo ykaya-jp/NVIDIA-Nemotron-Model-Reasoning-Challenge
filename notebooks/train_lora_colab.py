@@ -146,13 +146,27 @@ _run([sys.executable, "-m", "pip", "install", "-q",
 
 import torch
 
+_vram_gb = (
+    torch.cuda.get_device_properties(0).total_memory / 1024**3
+    if torch.cuda.is_available() else 0
+)
 print(
     "cuda:",
     torch.cuda.is_available(),
     "device:",
     torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
     "mem GB:",
-    torch.cuda.get_device_properties(0).total_memory / 1024**3 if torch.cuda.is_available() else 0,
+    _vram_gb,
+)
+# Codex audit 4 §BLOCK (2026-05-16): Nemotron-3-Nano-30B BF16 weights
+# alone are ~60 GB. An A100 40 GB will OOM at model load (cell 3),
+# leaving zero checkpoint after the pip install. Fail fast here so the
+# user can switch to an A100-80 runtime BEFORE pip install + model
+# download wastes 30 min.
+assert _vram_gb >= 75, (
+    f"GPU has only {_vram_gb:.1f} GB; Nemotron-3-Nano-30B BF16 needs "
+    f"~60 GB just for weights. Switch to A100 80 GB before continuing. "
+    f"In Colab: Runtime > Change runtime type > A100 + High-RAM (not L4 / not A100 40 GB)."
 )
 
 # ====================================================================
